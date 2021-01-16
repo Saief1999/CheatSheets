@@ -321,7 +321,7 @@ public class FriendlyGreeter implements GreetInterface{
 ```
 
 
-In `Greeter.java
+In `Greeter.java`
 ```java
 package com.demo;
 
@@ -400,7 +400,7 @@ private GreetInterface friendlyGreeter1 ;
 
 In `Greeter.java` : We add `value` Field for `@Component`
 ```java
-@Component(value="greeter")
+@Component()
 @Primary
 public class Greeter implements GreetInterface{
     //class body
@@ -463,6 +463,14 @@ public class GreeterConfiguration {
 
 
 
+
+
+
+
+
+
+
+
 ---
 
 ## Video 3.3 : Choosing an IDE 
@@ -479,11 +487,3 @@ public class GreeterConfiguration {
 ---
 
 ## Video 1.2 : Choosing an IDE 
-
-
-
-
-
-```
-
-```

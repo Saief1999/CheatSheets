@@ -436,13 +436,13 @@ import org.springframework.context.annotation.Configuration;
 public class GreeterConfiguration {
 
     @Bean
-    public GreetInterface Greeter()
+    public GreetInterface greeter() // first letter lowercase like the attribute name !
     {
         return new Greeter() ;
     }
 
     @Bean
-    public GreetInterface FriendlyGreeter()
+    public GreetInterface friendlyGreeter()
     {
         return new FriendlyGreeter() ;
     }
@@ -451,7 +451,9 @@ public class GreeterConfiguration {
 
 
 
+**IMPORTANT** : 
 
+- The Method name **Should match** the attribute name when Asking for the bean.
 
 
 
@@ -460,20 +462,183 @@ public class GreeterConfiguration {
 
 ## Video 3.3 : Spring Bean Scopes
 
+- Bean Scope : bean scope in spring influences its life cycle and exposure (visibility) to other components.
+
+- Currently, Spring supports **six different scope types**.
+
+- Annotated via **@Scope**
+
+- Most commonly used
+
+  - **Singleton** : only a single instance of an object exists in an application context
+  - **Prototype** : A new instance is created every time the bean is requested from the IOC container.
+
+- Less commonly used
+
+  - Web-aware scopes : Can only be used in a web aware application context
+    - **Request** : Scoped to the life cycle of a single HTTP request.
+    - **Session Scope** : Scoped to the life cycle of a single HTTP session, a session usually holds information across multiple requests.
+    - **Global Session** : scoped to the life cycle of a global HTTP session.
+    - **Application** : Instance of the bean is shared across the **SevletContext**
+
+  
+
+  
+
+  ### Singleton and Request Scopes (Example) : 
+
+  1. In `GreeterConfiguration.java` :
+     - We add @Scope from both Methods 
+     - We change the return types ( so we can change our attribute names later on ) 
+
+```java
+@Configuration
+public class GreeterConfiguration {
+
+    @Bean
+    @Scope(value = "prototype")
+    public Greeter greeter()
+    {
+        return new Greeter() ;
+    }
+
+    @Bean
+    @Scope(value="singleton")
+    public FriendlyGreeter friendlyGreeter()
+    {
+        return new FriendlyGreeter() ;
+    }
+}
+```
+
+
+
+2. In `GreeterBase.java` :
+   - We add a variable to observe the scope of our beans 
+
+```java
+package com.demo;
+
+public abstract class GreeterBase implements GreetInterface{
+
+    protected int greetCount = 0 ;
+}
+```
+
+
+
+3. In `Greeter` and `FriendlyGreeter` :
+   - We extends the abstract class
+   - we increment the variable at each call
+
+```java
+package com.demo;
+
+public class Greeter extends GreeterBase{
+
+    @Override
+    public String greet()
+    {
+        greetCount ++ ;
+        return "hello " + greetCount;
+    }
+}
+```
+
+
+
+4. In `RestController.java` 
+
+   - we add new attributes
+
+   - We add necessary endpoints 
+   - We change attribute types 
+
+
+
+```java
+@Autowired
+private Greeter greeter1 ;
+@Autowired
+private FriendlyGreeter friendlyGreeter1 ;
+@Autowired
+private Greeter greeter2 ;
+@Autowired
+private FriendlyGreeter friendlyGreeter2 ;
+```
+
+
+
+```java
+@RequestMapping("/hellofriendly1")
+public String helloFriendly(){
+    return friendlyGreeter1.greet()  ;
+}
+
+@RequestMapping("/hello1")
+public String helloWorld(){
+    return greeter1.greet();
+}
+
+@RequestMapping("/hellofriendly2")
+public String helloFriendly2(){
+    return friendlyGreeter2.greet()  ;
+}
+
+
+@RequestMapping("/hello2")
+public String helloWorld2(){
+    return greeter2.greet();
+}
+```
+
+
+
+**NOTES** :
+
+-  when we go to `/hello1` : it keeps incrementing (instance of the bean greeter requested only once  )
+- when we go to `/hello2` :
+  - a new instance for the bean greeter is requested , it's scope is **prototype** so a new object will be created . 
+  - We have a new Greeter with a new Counter , That keeps incrementing **independently of** `/hello1`
+
+- When we go to `/hellofriendly1` : 
+  - a new Instance of the bean `FriendltyGreeter` is requested. It will be returned and the counter will keep incrementing
+- When we go to `/hellofriendly2` : a new instance is requested. the bean's scope is **singleton** so the same object will be returned ( counter **shared** between both endpoints )
 
 
 
 
 
+### Request Scope (Example) : 
+
+In `GreeterConfiguration.java` : We change the scope of `FriendlyGreeter` bean .
+
+```java
+//...
+@Bean
+@Scope(value= WebApplicationContext.SCOPE_REQUEST,proxyMode = ScopedProxyMode.TARGET_CLASS)
+public FriendlyGreeter friendlyGreeter()
+{
+    return new FriendlyGreeter() ;
+}
+```
 
 
+
+- each Call for `/hellofriendly1` `/hellofriendly2` creates a new `FriendlyGreeter` bean instance.
 
 
 
 
 ---
 
-## Video 3.3 : Choosing an IDE 
+## Video 3.4 : Spring Bean Life Cycle and Callbacks
+
+
+
+
+
+
 
 
 ---

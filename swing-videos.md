@@ -727,8 +727,6 @@ destroy
 
 
 
-
-
 ---
 
 ## Video 3.5 : Spring Property Files
@@ -816,28 +814,304 @@ private DatabaseConfiguration config ;
 //
 ```
 
-And the result : `Friendly Greeting 4 database-user url-to-database`
+**Result** : `Friendly Greeting 4 database-user url-to-database`
+
+# Section 4 : Spring Data
+
+## Video 4.1 : Introduction to Spring Data : 
+
+- **Spring Data** : 
+  - simplifies database implementation
+  - provides an abstract, interchangeable and consistent way for data access
+- **spring data supports** this database solutions:
+  - JDBC
+  - java persistence API (JPA)
+  - MongoDB
+  - Couchbase
+
+- **H2** :
+
+  - Database management system for java-based applications 
+  - fully supported by Spring Boot
+  - Default configuration in Spring Boot is the **in-memory storage** (the data is **lost on application restart**)
+
+  
+
+---
+
+## Video 4.2 : Spring Data Dependencies
+
+- Required Dependencies :
+  - **Spring Boot Data JPA** dependency :Provides the basis for working with java-based database solutions.
+  - **H2 database** dependency.
+
+In `pom.xml` : 
+
+- We add the `H2` and `JPA` dependencies
+- We delete the versions (already mentioned in the parent)
+- We change the scope of h2 from `test` to `runtime`
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+
+<dependency>
+    <groupId>com.h2database</groupId>
+    <artifactId>h2</artifactId>
+    <scope>runtime</scope>
+</dependency>
+```
 
 
 
+---
+
+## Video 4.3 : Creating a Data Model : 
+
+- **Data Model** :  
+  - Java class representing an entity/object in the database.
+- **JPA Annotations** : used for database model creation
+  - **@Entity** : marks a java class as an Entity stored in DB
+  - **@Id** : Marks a field as the unique identifier of the entity
+  - **@GeneratedValue** : marks a field representing an automatically generated value.
+
+### Example : 
+
+In `Customer.java`
+
+```java
+package com.demo;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+
+@Entity
+public class Customer {
+
+    @Id
+    @GeneratedValue
+    private Long id ;
+
+    private String name ;
+
+    private int age  ;
 
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public int getAge() {
+        return age;
+    }
+
+    public void setAge(int age) {
+        this.age = age;
+    }
+}
+```
 
 
 
 
 ---
 
-## Video 4.1 : Choosing an IDE 
+## Video 4.4 : Setting Up a Repository
+
+- **Repository<T, ID>** :generic interface all repositories inherit from
+  - **T** : data type the repository stores
+  - **ID** : type of the identifier ( annotated with @Id in the model )
+
+- **CrudRepository<T, ID>** extends Repository(T,ID) : generic interface supporting CRUD operations
+  - Create -> `save(...)`
+  - Read -> `find(...)`
+  - Update -> `save(...)`
+  - Delete -> `delete (...)`
+
+- **PagingAndSortingRepository<T, ID>** extends CrudRepository <T,ID>
+  - supports key aspects of pagination
+  - finding entities matching certain conditions -> `findAll(...)`
+
+- **JpaRepository<T,ID>** extends PagingAndSortingRepository<T,ID> extends PagingAndSortingRepository<T,ID>
+  - JPA-specific extension of repository
+  - JPA-specific queries -> `getOne(...)`
+
+### To Create a Repository
+
+1. Create an **interface**
+2. let it **extend** one of the mentioned repository interfaces
+3. **Annotate** the interface with `@Repository`
+4. **implement/add** your own repository methods
+
+
+
+### Example : 
+
+- In `CustomerRepository.java`
+
+```java
+package com.demo;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface CustomerRepository extends JpaRepository<Customer,Long> {
+}
+```
+
+- In `RestController.java` : We **Autowire** the Repository  
+
+```java
+package com.demo;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+@org.springframework.web.bind.annotation.RestController
+public class RestController {
+
+    @Autowired
+    private CustomerRepository customerRepository ;
+
+}
+
+```
+
+
 
 ---
 
-## Video 4.2 : Choosing an IDE 
+## Video 4.5 : Reading and Writing the Database
+
+- Setup Unit Testing : 
+  - Add the Spring boot JUnit dependency 
+  - Create a test class and add the **required annotations**
+    - **@RunWith** : defines the runner the test should run with
+    - **@SpringBootTest** : marks the class as a spring boot test (allows us to specify the main class)
+
+
+
+#### Example : 
+
+
+In `pom.xml` : we add the Unit test dependency
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+
+
+
+
+In `src/test/java` : We create `CustomerRepositoryTest.java`
+
+```java
+@Repository
+public interface CustomerRepository extends JpaRepository<Customer, Long> {
+}
+```
+
+
+
+then to use the repository in a controller / unit test we do 
+
+```java
+@Autowired
+  private CustomerRepository repository ;
+```
+
+### Example of Unit Test
+
+```java
+//other imports ...
+import static org.junit.Assert.assertEquals;
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringBootTest(classes = Main.class)
+public class CustomerRepositoryTest {
+
+    @Autowired
+    private CustomerRepository repository;
+
+    @Test
+    public void testRepository() {
+        Customer customer = new Customer();
+        customer.setName("Tom");
+        customer.setAge(40);
+
+        repository.save(customer);
+        assertEquals(1, repository.findAll().size()); // confirm save
+
+        Customer loadedCustomer = repository.findById(customer.getId()).get(); // load / read by id
+        assertEquals("Tom", loadedCustomer.getName());
+        assertEquals(40, loadedCustomer.getAge());
+
+        customer.setName("Peter"); // change name
+        repository.save(customer); // update
+
+        Customer updatedCustomer = repository.findById(customer.getId()).get(); // reload by id
+        assertEquals("Peter", updatedCustomer.getName()); // check name updated correctly
+        assertEquals(40, updatedCustomer.getAge()); // check age unchanged
+
+        repository.delete(customer);
+        assertEquals(0, repository.findAll().size()); // confirm deletion
+    }
+}
+```
+
+# Section 5 : Creating a Rest API
+
+## Video 5.1 : Introduction to Creating Rest APIs 
+
+- **Rest** : 
+  - Representational State transfer
+  - way for distributed systems to communicate with each other (client-server)
+  - **Stateless** : each request contains all the required information
+  - Highly scalable
+- HTTP Request Methods :
+  - GET : requests data from the server
+  - POST : sends data to the server
 
 ---
 
-## Video 4.3 : Choosing an IDE 
+## Video 4.5 : Choosing an IDE 
 
 ---
 
-## Video 4.4 : Choosing an IDE 
+## Video 4.5 : Choosing an IDE 
+
+
+
+---
+
+## Video 4.5 : Choosing an IDE 
+
+
+---
+
+## Video 4.5 : Choosing an IDE 
+
+
+---
+
+## Video 4.5 : Choosing an IDE 

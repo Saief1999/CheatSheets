@@ -1088,30 +1088,151 @@ public class CustomerRepositoryTest {
   - way for distributed systems to communicate with each other (client-server)
   - **Stateless** : each request contains all the required information
   - Highly scalable
-- HTTP Request Methods :
-  - GET : requests data from the server
-  - POST : sends data to the server
+- **HTTP Request Methods** :
+  - **GET** : requests data from the server
+  - **POST** : sends data to the server 
+  - **PUT** : changes/updates data on the server
+  - **DELETE** : deletes data from the server
 
 ---
 
-## Video 4.5 : Choosing an IDE 
+## Video 5.2 : Creating a RestController*
+
+- **Controller** : a class responsible for preparing data ( from a model) to be presented in a view
+- **RestController** : a specific type of controller with capabilities for REST APIs 
+  - Annotated with `@RestController` 
+
+### Example 
+
+In `CustomerController.java`
+
+```java
+@RestController
+public class CustomerController {
+
+    @Autowired
+    private CustomerRepository repository ;
+
+}
+```
 
 ---
 
-## Video 4.5 : Choosing an IDE 
+## Video 5.3 : Creating endpoints for receiving data
+
+- POST endpoint : 
+  - Endpoint that takes data in JSON format and stores it in a repository
+- PUT endpoint :
+  - Endpoint that takes data in JSON format and uses it to update data in a repository
+
+### Example :
+
+```java
+@RestController
+public class CustomerController {
+
+    @Autowired
+    private CustomerRepository repository ;
+
+
+    @RequestMapping(value = "/customer",method = RequestMethod.POST)
+    public Customer save(@RequestBody Customer customer)
+    {
+        return repository.save(customer);
+    }
+
+    @RequestMapping(value ="/customer", method=RequestMethod.PUT)
+    public Customer update(@RequestBody Customer customer)
+    {
+        return repository.save(customer);
+    }
+    //...
+    }
+```
+
+
+
+**IMPORANT** : 
+
+- All endpoints except the **delete** should return the `customer` back.
+
+### Testing
+
+- Creating a Customer :
+
+```json
+{
+    "name" : "Tom",
+    "age" : 26
+}
+```
+
+- Updating a Customer :
+
+```json
+{
+    "id" : 1,
+    "name" : "Tommy",
+    "age" : 27
+}
+```
+
+---
+
+## Video 5.4: Creating endpoints for Sending and Deleting Data
+
+- GET endpoint :
+
+  - Endpoint that loads data from a repository and sends it in JSON format
+
+- DELETE endpoint :
+
+  - Endpoint that removes data from a repository
+
+  ### Example 
+
+  ```java
+  @RequestMapping(value ="/customer/{id}", method=RequestMethod.GET)
+      public Customer get(@PathVariable Long id)
+      {
+          return repository.findById(id).orElse(null); // we can use .get()
+      }
+      @RequestMapping(value="customer/{id}",method=RequestMethod.DELETE)
+      public void update(@PathVariable Long id)
+      {
+          repository.deleteById(id);
+      }
+  ```
+
+**Notes**
+
+- we need the id to perform delete and get. We use `@PathVariable`
+
+---
+
+## Video 5.5: Testing the Endpoints 
+
+> This part concerns unit Testing. Check the videos if you're curious
+
+# Section 6 : Going Reactive with Spring
+
+## Video 6.1 : Introduction to Creating Rest APIs 
+
+
+
 
 
 
 ---
 
-## Video 4.5 : Choosing an IDE 
+## Video 6.2 : ...
 
-
----
-
-## Video 4.5 : Choosing an IDE 
 
 
 ---
 
-## Video 4.5 : Choosing an IDE 
+## Video 6.3 : ...
+
+
+
+With :heart: By Saief

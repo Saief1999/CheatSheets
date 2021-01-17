@@ -3,13 +3,13 @@
 ## Video 1.2 : what is spring ?
 
 **Spring** : an open source java based application framework, the latest major 
-stable release is version 5.0 module based
+stable release is version 5.0 . It is module based.
 
 Modules include :
 
 - Spring core container : Base module with `BeanFactory` and `ApplicationContext`
 - Security : authentication / authorization (OAuth 2.0 )
-- IOC : lifecycle management management with dependency injection
+- IOC : lifecycle management with dependency injection
 - MVC : Used for creating RESTful web services
 - Data access : Database management systems (`jdbc` access ... ) 
 
@@ -40,7 +40,7 @@ Modules include :
 
 ### Adding  dependencies
 
-We start by copying this from this block from https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-parent
+We start by copying this dependency from https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-parent
 
 ```xml
 <dependency>
@@ -364,7 +364,7 @@ In `RestController.java`
 
 - In this case, spring uses the **Attribute Name** as an indication for **the bean that needs to be instantiated**
 - If we change the **Attribute Name** (`friendlyGreeter` to `friendlyGreeter1` for example) Spring won't be able to recognize which class (Already two components implement this interface ).
-- Therefore, We need to Use **@Qualifier** or **@Primary** 
+- Therefore, We need to Use **@Qualifier(value="...")** or **@Primary** or **@Component(value="...")**
 
 ### Solution 1 : Adding @Component(value="specificName")
 
@@ -382,7 +382,7 @@ In `RestController.java` : We leave the name **as it is**
 private GreetInterface greeter1 ;
 ```
 
-- The problem here. If we want to use the interface . We should Name our Attribute **exactly** as it's mentioned in the component.
+- The problem here, since we're using the interface, we should Name our Attribute **exactly** as it's mentioned in the component.
 
 ### Solution 2 : Using @Qualifier(value="beanName")
 
@@ -453,7 +453,7 @@ public class GreeterConfiguration {
 
 **IMPORTANT** : 
 
-- The Method name **Should match** the attribute name when Asking for the bean.
+-  The attribute name **Should match** the method name when requesting the bean.
 
 
 
@@ -470,7 +470,7 @@ public class GreeterConfiguration {
 
 - Most commonly used
 
-  - **Singleton** : only a single instance of an object exists in an application context
+  - **Singleton** **(Default)**  : only a single instance of an object exists in an application context
   - **Prototype** : A new instance is created every time the bean is requested from the IOC container.
 
 - Less commonly used
@@ -636,6 +636,94 @@ public FriendlyGreeter friendlyGreeter()
 
 
 
+- Spring bean life cycle : 
+  - describes the entire span of existence of a spring bean
+  - This starts with the bean creation by the IOC container , ends with its destruction.
+
+- Simplified bean initialization life cycle
+
+![spring-init-lifecycle](C:\Users\saief\OneDrive\Documents\CheatSheets\spring-init-lifecycle.png)
+
+
+
+- Simplified bean destruction life cycle
+
+![spring-dest-lifecycle](C:\Users\saief\OneDrive\Documents\CheatSheets\spring-dest-lifecycle.png)
+
+- **Lifecycle interfaces** (bean implements interface & overrides methods ) :
+  - **InitializingBean** : **Interface** that allows callbacks during initialization process of a bean.
+  - **DisposableBean** : **Interface** that allows callbacks during the destruction process of a bean.
+- Lifecycle Annotations :
+  - **@PostCostruc**t : **Annotation** that can be used to annotate the methods of a bean that should be called **after** the bean has been **initialized** by the IoC container
+  - **@PreDestroy** : **Annotation** that can be used to annotate the methods of a bean that should be called when a bean is **about to** be **destroyed**.
+
+### Example (Interfaces)  : 
+
+In `FriendlyGreeter.java`
+
+```java
+public class FriendlyGreeter extends GreeterBase implements InitializingBean, DisposableBean {
+
+    @Override
+    public String greet() {
+        greetCount++ ;
+        return "Friendly Greeting "+greetCount ;
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        System.out.println("afterPropertiesSet");
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        System.out.println("destroy");
+    }
+}
+```
+
+
+
+**Notes :**
+
+
+- The bean scope is **request** .So for each request a new instance is created then destroyed . For each request we see : 
+`afterPropertiesSet`
+`destroy`
+- If the bean scope is **singleton (default)**. the bean will be instantiated ( `afterPropertiesSet` shows up ) **with application startup** . and will be deleted ( `destroy` will show up ) with **application shutdown**.
+
+### Example (Annotations)  : 
+
+In `FriendlyGreeter.java`
+
+```java
+//...
+@PostConstruct
+private void postConstruct()
+{
+    System.out.println("postConstruct");
+}
+
+@PreDestroy
+private void preDestroy(){
+    System.out.println("preDestroy");
+}
+//...
+```
+
+
+
+- Order is the following for **Singleton** Scope : 
+
+```
+//during startup
+postConstruct
+afterPropertiesSet
+
+//during shutdown
+preDestroy
+destroy
+```
 
 
 
@@ -643,12 +731,113 @@ public FriendlyGreeter friendlyGreeter()
 
 ---
 
-## Video 3.4 : Choosing an IDE 
+## Video 3.5 : Spring Property Files
+
+- Property files : used to provide additional application data ( example `db connexion URL`)
+- To **read** Property files we use **@ConfugurationProperties**
+  - it it used to **externalize** configuration data and separate it from beans
+  - Annotation a class that has `@Configuration` to make it read properties from certain configuration files ( example : `application.yml` )
+
+### Example 
+
+- in `src/main/resources` : we create `application.yml`
+
+```yaml
+database:
+  url: url-to-database
+  username: database-user
+```
+
+
+- in `src/main/resources` : we create `DatabaseConfiguration.java`
+	- we add `@ConfigurationProperties(prefix="parentProperty")`
+	- we add properties as fields
+	- We add getters/setters 
+	- It's a `@component` not `@Configuration` !! (so we can do `@Autowired` later)
+
+```java
+@Component
+@ConfigurationProperties(prefix="database")
+public class DatabaseConfiguration {
+
+    private String url ;
+    private String username ;
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+}
+```
+
+
+
+- in `GreeterConfig.java` : 
+  - we use our `DatabaseConfiguration` as `@Autowired`
+  - We pass it to the constructor of the bean
+
+```java
+//...
+@Autowired
+private DatabaseConfiguration databaseConfig ;
+
+    @Bean
+    public FriendlyGreeter friendlyGreeter()
+    {
+        return new FriendlyGreeter(databaseConfig) ;
+    }
+//...
+```
+
+
+
+- in `FriendlyGreeter.java` : we pass the config in the **constructor**
+  - we don't need `@Autowired` for the attribute ( it's passed to the constructor via the Configuration File of the bean `GreeterConfiguration.java` )
+
+```java
+//...
+private DatabaseConfiguration config ;
+
+ FriendlyGreeter(DatabaseConfiguration config)
+ {
+     this.config=config;
+ }
+//
+```
+
+And the result : `Friendly Greeting 4 database-user url-to-database`
+
+
+
+
+
+
+
+
 
 ---
 
-## Video 3.5 : Choosing an IDE 
+## Video 4.1 : Choosing an IDE 
 
 ---
 
-## Video 1.2 : Choosing an IDE 
+## Video 4.2 : Choosing an IDE 
+
+---
+
+## Video 4.3 : Choosing an IDE 
+
+---
+
+## Video 4.4 : Choosing an IDE 

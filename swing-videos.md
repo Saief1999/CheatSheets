@@ -642,13 +642,13 @@ public FriendlyGreeter friendlyGreeter()
 
 - Simplified bean initialization life cycle
 
-![spring-init-lifecycle](C:\Users\saief\OneDrive\Documents\CheatSheets\spring-init-lifecycle.png)
+![spring-init-lifecycle](./spring-init-lifecycle.png)
 
 
 
 - Simplified bean destruction life cycle
 
-![spring-dest-lifecycle](C:\Users\saief\OneDrive\Documents\CheatSheets\spring-dest-lifecycle.png)
+![spring-dest-lifecycle](./spring-dest-lifecycle.png)
 
 - **Lifecycle interfaces** (bean implements interface & overrides methods ) :
   - **InitializingBean** : **Interface** that allows callbacks during initialization process of a bean.

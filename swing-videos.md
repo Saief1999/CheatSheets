@@ -1158,7 +1158,7 @@ public class CustomerController {
 
 ### Testing
 
-- Creating a Customer :
+- Creating a Customer(JSON POST Request) :
 
 ```json
 {
@@ -1167,7 +1167,7 @@ public class CustomerController {
 }
 ```
 
-- Updating a Customer :
+- Updating a Customer (JSON PUT request):
 
 ```json
 {
@@ -1198,7 +1198,7 @@ public class CustomerController {
           return repository.findById(id).orElse(null); // we can use .get()
       }
       @RequestMapping(value="customer/{id}",method=RequestMethod.DELETE)
-      public void update(@PathVariable Long id)
+      public void delete(@PathVariable Long id)
       {
           repository.deleteById(id);
       }
@@ -1216,22 +1216,126 @@ public class CustomerController {
 
 # Section 6 : Going Reactive with Spring
 
-## Video 6.1 : Introduction to Creating Rest APIs 
+## Video 6.1 : Introduction to Spring Reactive 
 
+- Reactive Programming :
+  - Approach to process data asynchronously without any blocking IO operation
+  - Instead of waiting for an async operation to finish (and block the thread) reactive programming relies on **observable streams**.
+  - reactivity : the principle relies on **reacting to changes** happening on an **observed stream**.
+  - Two instances : 
+    - **A publisher** : publishes events on the stream
+    - **A subscriber** : who reacts to those events.
+- `Webflux` : 
+  - fully supports non blocking reactive streams
+  - Uses two publishers
+    - Mono<T> : for handling 0 or 1 element
+    - Flux<T> : fir handling 0 to N element(s)
+  - Flux can return a list of elements, or indefinitely emit new elements to the stream
+  - API is **reactive**  it it returns objects wrapped in `Mono` or `Flux`
 
+### Adding the Webflux Dependency
+
+In `pom.xml`
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-webflux</artifactId>
+</dependency>
+```
 
 
 
 
 ---
 
-## Video 6.2 : ...
+## Video 6.2 : Creating a Reactive Repository
+
+- JPA doesn't support reactive streams, so we're using a `HashMap` as a database.
+
+```java
+package com.demo;
+
+import org.springframework.stereotype.Repository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import java.util.HashMap;
+import java.util.Map;
+
+@Repository
+public class ReactiveCustomerRepository {
+
+    private static Map<Long, Customer> customers = new HashMap<>();
+
+    Mono<Customer> save(Customer customer)
+    {
+        customers.put(customer.getId(),customer) ;
+        return Mono.justOrEmpty(customer);
+    }
+
+    Mono<Customer> findById(Long id)
+    {
+        return Mono.justOrEmpty(customers.get(id));
+    }
+
+    Flux<Customer> findAll(){
+        return Flux.fromIterable(customers.values());
+    }
+
+    Mono<Customer> deleteById(Long id){
+        return Mono.justOrEmpty(customers.remove(id));
+    }
+}
+```
 
 
 
 ---
 
-## Video 6.3 : ...
+## Video 6.3 : Creating a Reactive RestController
+
+```java
+@RestController
+public class CustomerController {
+
+    @Autowired
+    private ReactiveCustomerRepository repository ;
+
+
+    @RequestMapping(value = "/customer",method = RequestMethod.POST)
+    public Mono<Customer> save(@RequestBody Customer customer)
+    {
+        return repository.save(customer);
+    }
+
+    @RequestMapping(value ="/customer", method=RequestMethod.PUT)
+    public Mono<Customer> update(@RequestBody Customer customer)
+    {
+        return repository.save(customer);
+    }
+
+
+    @RequestMapping(value ="/customer/{id}", method=RequestMethod.GET)
+    public Mono<Customer> get(@PathVariable Long id)
+    {
+        return repository.findById(id);
+    }
+
+    @RequestMapping(value="/customer",method=RequestMethod.GET)
+    public Flux<Customer> getAll()
+    {
+        return repository.findAll() ;
+    }
+
+    @RequestMapping(value="customer/{id}",method=RequestMethod.DELETE)
+    public void delete(@PathVariable Long id)
+    {
+        repository.deleteById(id);
+    }
+
+}
+```
+
 
 
 

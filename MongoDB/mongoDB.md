@@ -172,3 +172,298 @@ SUMMARY :
   - phase 3 : Apply patterns (like denormalization)
     - transformations : address performance, maintenance, or simplicity requirements
 
+
+
+# Course 2 : M001
+
+## Chapter 1 : What is MongoDB ?
+
+### Atlas User Interface
+
+- A cluster has a set of databases
+- Each database has a couple of collections
+- Each collections has documents, these documents can have different structures
+
+- 0.0.0.0 will give access to **everyone** to the cluster.
+- 2 ways to access data :
+  - through the website (select cluster then click collections)
+  - through the shell 
+
+
+
+### In-Browser IDE
+
+### How does MongoDB store data?
+
+- Data is stored in BSON (not human readable) and visualized in JSON
+  - offers speed , flexibility ... over JSON.
+
+## Chapter 2 : Importing & Exporting
+
+- **drop** clears the database before inserting
+
+```shell
+mongodump --uri "mongodb+srv://<your username>:<your password>@<your cluster>.mongodb.net/sample_supplies"
+
+mongoexport --uri="mongodb+srv://<your username>:<your password>@<your cluster>.mongodb.net/sample_supplies" --collection=sales --out=sales.json
+
+mongorestore --uri "mongodb+srv://<your username>:<your password>@<your cluster>.mongodb.net/sample_supplies"  --drop dump
+
+mongoimport --uri="mongodb+srv://<your username>:<your password>@<your cluster>.mongodb.net/sample_supplies" --drop sales.json
+```
+
+### Data Explorer
+
+#### Using Atlas UI
+
+- Using the atlas UI , we go to collection
+- we then select the wanted collection by searching `db_name.collection_name` and then write our filter to find the data
+
+Example : 
+
+```json
+{"state":"NY", "city" : "ALBANY"}
+```
+
+This will return documents with matching state and city
+
+#### Using Shell
+
+> A fully functional JavaScript interpreter
+
+- To select a Database : 
+
+  ```
+  use db_name
+  ```
+
+- To show Databases :
+
+  ```
+  show dbs
+  ```
+
+- To show collection in a specific Database
+
+  ```
+  show collections
+  ```
+
+
+
+### Find command
+
+```shell
+db.zips.find({"state": "NY"})
+```
+
+- `it` iterates through the cursor. (if it show 20 per page , `it` will show the next 20)
+
+- To Count the number of documents in the result:
+
+```shell
+db.zips.find({"state": "NY"}).count()
+```
+
+- To prettify : 
+
+```shell
+db.zips.find({"state": "NY", "city": "ALBANY"}).pretty()
+```
+
+
+
+
+
+## Chapter 3  : Inserting New Documents 
+
+### Inserting New Documents - ObjectId (Check M320 after this)
+
+- ObjectId() : Gives unique value to `_id` (it is the default value unless otherwise specified)
+
+### Inserting New Documents - insert() and errors
+
+```shell
+db.<collection-name>.insert({document});
+```
+
+
+
+- Final remarks : 
+  - We can insert two duplicate documents, as long as the `_id` is different
+  - if we don't provide a`_id` field, it will be automatically generated 
+
+### Inserting New Documents - insert() order
+
+- Inserting multiple documents
+
+```
+db.inspections.insert([ { doc1 }, { doc2 }, { doc3 } ])
+```
+
+
+
+#### ordered parameter
+
+- This will insert test1 (is is sequential in the insertion, one error and it stops)
+
+```
+db.inspections.insert([{ "_id": 1, "test": 1 },{ "_id": 1, "test": 2 },
+                       { "_id": 3, "test": 3 }])
+```
+
+
+
+- This will only insert test 3 (the only one without an error)
+
+```
+db.inspections.insert([{ "_id": 1, "test": 1 },{ "_id": 1, "test": 2 },
+                       { "_id": 3, "test": 3 }],{ "ordered": false })
+```
+
+
+
+#### finals notes on insertion
+
+- When we insert a document to a collection that doesn't exist, well it exists now !
+- when the collection is created, the database is created also if it doesn't exist
+
+### Updating Documents - Data Explorer
+
+> EZ PZ
+
+### Updating Documents - mongo shell
+
+- `findOne()` : returns **one** document that matches the given query
+- `updateOne()`: updates one document that matches the given query
+- `updateMany()` : updates all documents matching query
+
+
+
+#### Examples : 
+
+- Increment a field
+
+```shell
+db.zips.updateMany({ "city": "HUDSON" }, { "$inc": { "pop": 10 } })
+```
+
+- Set the value of a field (if it doesn't exist, it gets created)
+
+```sh
+db.zips.updateOne({ "zip": "12534" }, { "$set": { "population": 17630 } })
+```
+
+- add and element to an array field :
+
+```shell
+db.grades.updateOne({ "student_id": 250, "class_id": 339 },
+                    { "$push": { "scores": { "type": "extra credit","score": 100 }}})
+```
+
+
+
+### Deleting Documents and Collections
+
+- `deleteOne()` : only useful when we're querying by `_id` (otherwise using it is very dangerous ).
+- `deleteMany()`  : to delete many documents based on a query
+
+- `db.<collection-name>.drop()`: Drops a collection 
+
+
+
+## Chapter 4: Advanced CRUD Operations
+
+### Query Operators - Comparison
+
+#### update operators 
+
+- $inc
+- $set
+- $unset
+
+#### Query operators
+
+- Provide additional ways to locate data within the database
+
+####  Comparison operators
+
+```json
+{ <field>: { <operator>: <value>} }
+```
+
+- `$eq` (we can omit it ) and `$ne`
+- `$gt` and `$lt`
+- `$gte` and `$lte`
+
+Examples
+
+- In Atlas UI
+
+```json
+{"tripduration" : {"$lt": 70}}
+{ "tripduration": { "$lte" : 70 },"usertype": { "$ne": "Subscriber" } }
+```
+
+- In Shell
+
+```shell
+db.trips.find({ "tripduration": { "$lte" : 70 },
+                "usertype": { "$ne": "Subscriber" } }).pretty()
+```
+
+Example 2
+
+```shell
+db.trips.find({"birth year": {"$gt":1998}}).count() - db.trips.find({"birth year": 1998}).count()
+```
+
+### Query Operators - Logic
+
+- $and , $or , $nor  ( $and is implicit most of the times ) : 
+  - Syntax : `{ <operator> : [{statement1},{statement2},...] }`
+- $not :
+  - Syntax : `{ $not: { statement } }`
+
+
+
+Examples 
+
+```shell
+db.routes.find({ "$and": [ { "$or" :[ { "dst_airport": "KZN" },
+                                    { "src_airport": "KZN" }
+                                  ] },
+                          { "$or" :[ { "airplane": "CR2" },
+                                     { "airplane": "A81" } ] }
+                         ]}).pretty()
+```
+
+```shell
+db.zips.find({ "pop" : {"$lt" : 1000000 ,"$gt": 5000}})
+```
+
+Challenging Example : 
+
+```shell
+db.companies.find({
+	"$or" : [
+	{"$and" : [ {"founded_year":2004}, {"$or" : [{"category_code":"web"},{"category_code":"social"}]}]},
+	{"$and" : [ {"founded_month":10}, {"$or" : [{"category_code":"web"},{"category_code":"social"}]}]} ]        
+	})
+```
+
+Same as : 
+
+```shell
+db.companies.find({
+	"$and" : [ { "$or" : [{"founded_year":2004},{"founded_month":10}]} ,{ "$or" : [{"category_code":"web"},{"category_code":"social"}]}]}).count()
+```
+
+
+
+- $and is used as the default operator when an operator is not specified
+- explicitly use $and when you need to include the same operator more than once in a query ; for example   `( ( a or b ) and ( c or d ) )`
+
+### Expressive Query Operator
+
+> we will attack this tomorrow

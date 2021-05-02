@@ -514,8 +514,10 @@ X mod Y the remainder of X divided by Y
   
     - Example : The head and tail of a list are components of the `functor` named “.”, which is the dot (called the period or full stop). Thus, the list consisting of one element “a” is “.(a,[])” 
   
-    - we can also use another notation , called the `list notation` : `[a]`
+      -  the list consisting of the atoms a, b and c is written `.(a,.(b,.(c,[])))`,
   
+    - we can also use another notation , called the `list notation` : `[a]`
+    
     - | List                    | Head       | Tail               |
       | ----------------------- | ---------- | ------------------ |
       | [a,b,c]                 | a          | [b,c]              |
@@ -525,9 +527,7 @@ X mod Y the remainder of X divided by Y
       | [the, [cat, sat], down] | the        | [[cat, sat], down] |
       | [X+Y,x+y]               | X+Y        | [x+y]              |
 
-
-
-
+- Notice that the empty list has neither a head nor a tail. When we try to unify it with [X|Y] **it will fail.**
 
 Example : 
 
@@ -581,6 +581,8 @@ parent(X, Y) :- child(Y, X).
 child(A, B) :- parent(B, A)
 ```
 
+In this example, to satisfy parent, we set up child as a goal. However, the definition for child uses only parent as a goal. You should be able to see that asking a question about parent or child would lead to a loop in which Prolog would never infer anything new, and that the loop would never terminate.
+
 **left recursion(error):**
 
 ```
@@ -600,4 +602,122 @@ person(X) :- person(Y), mother(X, Y).
 
 - **Important note** : Don’t assume that, just because you have provided all the relevant facts and rules, Prolog will always find them. You must bear in mind when you write Prolog programs how Prolog searches through the database and which variables will be instantiated when one of your rules is used.
 - When we write f(N-1) he searches for f(X-Y) !!!
+
+### 3.4 Mapping
+
+- Given a Prolog structure, we frequently wish to construct a new structure that is similar to the old one but changed in some way. We traverse the old structure component-by-component, and construct the components of the new structure. We call this mapping.
+
+A Prolog program to change one sentence into another can be written as follows:
+
+1. We need to define a Prolog predicate, called `alter`, such that **alter(X,Y) means that sentence X can be altered to give sentence Y**. It is convenient for X and Y to be lists, with atoms standing for the words, so sentences can be written like this: `[this, is, a, sentence]`
+   - once alter is defined, we could ask Prolog a question of the form `?- alter([do,you,know,french], X).`, prolog will reply `X=[no,i,know,german].`
+2. Because alter deals with lists, the first fact about alter needs to deal with what happens if the list is empty. In this case, we will say that an empty list is altered into an empty list: `alter([],[]).`
+
+3. Altering a list with head H and tail T gives a list with head X and tail Y if: changing word H gives word X, and altering the list T gives the list Y.
+
+4. we need to say what is meant by “changing” one word into another. This can be done by having a database of facts in which change(X, Y) means word X can be changed into word Y. 
+
+5. At the end of the database we need a “catchall” fact, because if a word is not changed into another word it needs to be changed into itself. 
+
+   ```
+   change(you, i).
+   /*...*/
+   change(X, X). /* this is the "catchall" */
+   ```
+
+
+
+Full Program : 
+
+```
+change(you, i).
+change(are, [am,not]).
+change(french, german).
+change(do, no).
+change(X, X). /* this is the "catchall" */
+
+alter([],[]).
+alter([H|T],[X|Y]):- change(H,X),alter(T,Y).
+```
+
+
+
+### 3.5 Recursive Comparison (checking all elements of a list)
+
+Example : 
+
+```
+fuel_consumed(waster, [3.1, 10.4, 15.9, 10.3]).
+fuel_consumed(guzzler, [3.2, 9.9, 13.0, 11.6]).
+fuel_consumed(prodigal, [2.8, 9.8, 13.1, 10.4]).
+
+equal_or_better_consumption(Good, Bad) :-
+    Threshold is (Good + Bad) / 40,
+    Worst is Bad + Threshold,
+    Good < Worst.
+
+fuel_consumed(Car1, Con1),
+fuel_consumed(Car2, Con2),
+always_better(Con1, Con2).
+
+always_better([], []).
+always_better([Con1|T1], [Con2|T2]) :-
+equal_or_better_consumption(Con1, Con2),
+always_better(T1, T2).
+
+
+sometimes_better([Con1|_], [Con2|_]) :-
+equal_or_better_consumption(Con1, Con2).
+
+sometimes_better([_|Con1], [_|Con2]) :-
+sometimes_better(Con1, Con2).
+```
+
+### 3.6 Joining Structures Together
+
+**As A rule of thumb, when you want to loop through a list and put each of its elements in another list , you'd have something like `functor([H1|T1],[H2|T2]):-functor(T1,T2)` and we add also `functor([],[])` as a finish condition** 
+
+#### Append 
+
+- The list processing predicate append is used to join two lists together to form another, new, list. For example, it is true that : 
+  - `append([a, b, c], [3, 2, 1], [a, b, c, 3, 2, 1]).`
+
+- The predicate append is most often used to create a new list from concatenating two others, like this: 
+  - `?- append([alpha, beta], [gamma, delta], X). `
+    `X = [alpha, beta, gamma, delta]`
+
+- But it can also be used in other ways:
+  - `?- append(X, [b,c,d], [a,b,c,d]). `
+    `X=[a]`
+
+The predicate **append** is defined as follows:
+
+```
+append([], L, L). 
+append([X|L1], L2, [X|L3]) :- append(L1, L2, L3).
+```
+
+
+
+#### Bicycle example
+
+```
+partsof(X, [X]) :- basicpart(X).
+
+partsof(X, P) :-
+    assembly(X, Subparts),
+    partsoflist(Subparts, P).
+    
+partsoflist([], []).
+partsoflist([P|Tail], Total) :-
+    partsof(P, Headparts),
+    partsoflist(Tail, Tailparts),
+    append(Headparts, Tailparts, Total)
+```
+
+
+
+### 3.7 Accumulators
+
+> TODO
 

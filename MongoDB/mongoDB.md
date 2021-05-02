@@ -1,3 +1,5 @@
+
+
 # Course 1 : M100
 
 ## Chapter 1 
@@ -466,4 +468,517 @@ db.companies.find({
 
 ### Expressive Query Operator
 
-> we will attack this tomorrow
+- $expr allows the use of aggregations expressions within the query 
+  - Syntax : `{ $expr : { <expression }}`
+- $expr allows us to use variables and conditional statements.
+
+```json
+{"$expr" : { "$eq" : [ "$start station id","$end station id"] }}
+```
+
+- `$` can also address the field value (like the example above) 
+
+
+
+
+
+**Example:**
+
+```sh
+db.trips.find({ "$expr": { "$and": [ { "$gt": [ "$tripduration", 1200 ]},
+                         { "$eq": [ "$end station id", "$start station id" ]}
+                       ]}}).count()
+```
+
+MQL Syntax :
+
+```json
+{<field>: { <operator> : <value>}}
+```
+
+Aggregation Syntax : 
+
+```json
+{<operator>: { <field> : <value>}}
+```
+
+### Array Operators
+
+- $push : 
+  - adds element to an array
+  - turns a field into an array field if it was previously a different type
+
+- Look for documents where amenities array has exactly one element, shampoo
+
+```json
+{"amenities": ["Shampoo"]}
+```
+
+- Look for document where amenities array contains shampoo 
+
+```json
+{"amenities": "Shampoo"}
+```
+
+- Look for documents where amenities array contains **exactly** Shampoo **then** Soap **in that specific order** .
+
+```json
+{"amenities": ["Shampoo","Soap"]}
+```
+
+- Look for documents that have **at least** this elements in the amenities array 
+
+```json
+{"amenities": {"$all" : ["Shampoo","Soap"] } }
+```
+
+- query by **array length** (for this example array needs of size **exactly** 20 )
+
+```json
+{"amenities" : { "$size": 20 }}
+```
+
+
+
+
+
+- Examples : 
+
+```shell
+db.listingsAndReviews.find({ "$and" :[ {"reviews": {"$size" :50} },{"accommodates":{"$gt" : 6}}  ] })
+```
+
+
+
+```shell
+db.listingsAndReviews.find({"$and":[{"property_type":"House"},{"amenities" : "Changing table"}] })
+```
+
+### Array Operators and Projection
+
+- **Syntax of projection** (1: include field , 0: don't )
+
+```shell
+db.<collection>.find( { <query> }, { <projection> } )
+```
+
+
+
+- **Example** : show price and address , but don't show _id (because _id is always included by default , this is the only use case when we use 0 and 1 )
+
+```shell
+db.listingsAndReviews.find({ "amenities": "Wifi" },
+                           { "price": 1, "address": 1, "_id": 0 }).pretty(
+```
+
+
+
+- `$elemMatch` : Condition on **sub-document**
+
+  - Using projection (`"$elemMatch": { "score": { "$gt": 85 }` will return 0 or 1, so either it will projected with _id, or we get only _id)
+
+    ```shell
+    db.grades.find({ "class_id": 431 },
+                   { "scores": { "$elemMatch": { "score": { "$gt": 85 } } }
+                 }).pretty()
+    ```
+
+    
+
+  - Not using Projection (matches all documents containing an array field matching the specified criteria )
+
+    ```shell
+    db.grades.find({ "scores": { "$elemMatch": { "type": "extra credit" } }
+                   }).pretty()
+    ```
+
+
+
+### Array Operators and Sub-Documents
+
+#### Dot Notation
+
+- for an object
+
+```shell
+db.trips.findOne({ "start station location.type": "Point" })
+```
+
+- for an array : (`.0` : element with index 0 in the array )
+
+```shell
+db.companies.find({ "relationships.0.person.last_name": "Zuckerberg" },
+                  { "name": 1 }).pretty()
+```
+
+To search in the whole array we use `$elemMatch` like we discussed before.
+
+```shell
+db.companies.find({ "relationships":
+                      { "$elemMatch": { "is_past": true,
+                                        "person.first_name": "Mark" } } },
+                  { "name": 1 })
+```
+
+
+
+## Chapter 5 : Indexing and Aggregation Pipeline
+
+### Aggregation Framework
+
+
+
+- we use `aggregate` instead of `find` 
+
+```shell
+db.listingsAndReviews.aggregate([{ "$match": { "amenities": "Wifi" }},
+                                 { "$project": { "price": 1,"address": 1,"_id": 0 }}]).pretty()
+```
+
+
+
+- order is important in an aggregation ( different stages ) , the example above has 2 stages , the `$match` stage and then the `$project` stage 
+
+
+
+MQL : filter / update data
+
+Aggregation framework : compute / reshape data
+
+
+
+#### $group
+
+- An operator that take the incoming data stream and siphons it into multiple distinct reservoir
+
+- Important : Non-filtering stages do not modify the original data. instead, they work with the data in the cursor
+
+```sh
+{$group :{_id : <expression>, <field1>: { <accumulator1> : <expression1> }, } }
+```
+
+- Example 1 : without using acc1
+
+```shell
+db.listingsAndReviews.aggregate([{ "$project" : { "address":1,"_id":0 }}, {"$group" :{_id : "$address.country"} } ])
+```
+
+- Example 2 (adding count for each line)
+
+```shell
+db.listingsAndReviews.aggregate([{ "$project" : { "address":1,"_id":0 }}, {"$group" :{_id : "$address.country", "count": {"$sum":1}} } ])
+```
+
+
+
+#### sort() and limit()
+
+
+
+- they are cursor methods  like `pretty()` and `count()`
+- they are applied to the result set in the cursor
+
+Examples 
+
+```sh
+# 1 for increasing, -1 for decreasing
+db.zips.find().sort({ "pop": 1 }).limit(1)
+
+db.zips.find({ "pop": 0 }).count()
+
+db.zips.find().sort({ "pop": -1 }).limit(1)
+
+db.zips.find().sort({ "pop": -1 }).limit(10)
+
+db.zips.find().sort({ "pop": 1, "city": -1 })
+```
+
+### Introduction to Indexes
+
+- an index : 
+  - similar to an index in a book
+  - a special data structure that stores a small portion of the collection's data in an east to traverse form
+
+Examples 
+
+```shell
+# single field index
+db.trips.createIndex({ "birth year": 1 })
+# multiple field index
+db.trips.createIndex({ "start station id": 1, "birth year": 1 })
+# sort can be avoided in the request below, bcz we have an index already
+db.trips.find({ "start station id": 476 }).sort( { "birth year": 1 } )
+```
+
+
+
+### Introduction to Data Modeling
+
+- **Rule : Data is stored the wat that it is used** 
+  - Everything that is queried together should be in the same collection, for optimization
+
+### Upsert - Update or Insert?
+
+#### Update Request : 
+
+```sh
+db.collection.updateOne({<query to late>}, {<update>})
+```
+
+
+
+#### Upsert (false by default)
+
+```
+db.collection.updateOne({<query to late>}, {<update>},{"upsert":true})
+```
+
+- this will insert the record if it doesn't exist ;
+
+## Chapter 6: Next Steps
+
+### Atlas Products and Options
+
+- Each organization can have many projects
+- Each project can have many clusters , each team is assigned to a project
+- each cluster can have many databases, clusters should have unique names
+- each database can have many collections
+- each collection can have many documents
+
+
+
+- **Charts** : To draw charts using the data
+- **Realm** : similar to Firebase in some aspects.
+
+### What is MongoDB Compass?
+
+**Never Touch admin, config and local databases.**
+
+- we need to add an index for each field / set of fields we search documents by .
+
+
+
+
+
+- **Validation** tab : create new validations.
+- **Explain plan** tab : shows how the query was executed, which indexes were used and how many documents it searched in  for the result.
+
+
+
+# Course M320 : Data Modeling 
+
+## Chapter 1 : Chapter 1: Introduction to Data Modeling
+
+### Introduction to Data Modeling
+
+> https://www.vertabelo.com/blog/crow-s-foot-notation/
+
+### Data Modeling in MongoDB
+
+- Structure -> Schema 
+
+- Mongodb is **not** `schemaless`, as we go further we will find a general schema for our data, then we enforce some validation rules
+
+- Storing everything in one gigantic document is sometimes not efficient. when many changes occur for example
+
+- you can perform all kind of join in mongodb, with `$lookup`
+
+  
+
+### The Document Model in MongoDB
+
+- MongoDB stores data as Documents
+- Document fields can be values, embedded docs, arrays of values and documents
+- MongoDB is a Flexible Schema database.
+
+### Constraints in Data Modeling
+
+- max size of document (16 MB ), atomicity of updates.
+- Working Set : Frequently Accessed Documents and Indexes 
+
+
+
+- **Tips :** 
+  - Keep the frequently used Documents in RAM
+  - keep the indexes in RAM
+  - Prefer SSD to HDD
+  - Infrequently data can use HDD
+
+### The Data Modeling Methodology
+
+1. Describe the workload : All there is to know about the data
+2. Identify the relationships
+3. Apply Design Patterns
+
+
+
+#### 1.Describe the workload
+
+- Workload :
+  - size data
+  - quantify operations
+  - qualify operations 
+
+#### 2.Identify the relationships
+
+- Relationships :
+  - identify
+  - quantify
+  - embed of link
+
+#### 3.Apply Design Patterns
+
+- Patterns : 
+  - recognize
+  - apply
+
+![methodology](./methodology.png)
+
+### Model for Simplicity or Performance
+
+![https://university-courses.s3.amazonaws.com/M320/modeling_for_simplicity.png](https://university-courses.s3.amazonaws.com/M320/modeling_for_simplicity.png)
+
+![https://university-courses.s3.amazonaws.com/M320/modeling_for_a_mix.png](https://university-courses.s3.amazonaws.com/M320/modeling_for_a_mix.png)
+
+![https://university-courses.s3.amazonaws.com/M320/modeling_for_performance.png](https://university-courses.s3.amazonaws.com/M320/modeling_for_performance.png)
+
+![https://university-courses.s3.amazonaws.com/M320/flexible_methodology.png](https://university-courses.s3.amazonaws.com/M320/flexible_methodology.png)
+
+
+
+### Identifying the Workload
+
+
+
+## Chapter 2: Relationships
+
+### Relationship Types and Cardinality
+
+#### One to One
+
+#### One to Many
+
+#### One to Zillions
+
+#### Many to Many
+
+### One-to-Many Relationship
+
+#### embed in the "one" side : 
+
+- documents form the "many" side are embedded
+- most common representation for : 
+  - simple applications
+  - few documents to embed
+- in order to query from the embedded array , we **index** it.
+
+#### embed, in the "many" side (Sounds weird ...)
+
+- Example : **one** address **many** orders 
+- less often used
+- useful if "many" side is **queried more often** that one side
+- embedded object is **duplicated** :
+  - duplication may be preferable for dynamic objects
+
+#### reference, in the "one side" 
+
+- example : we create an **array of ids** on the one side
+- cascade deletes are not supported and must be managed by the app
+
+#### reference, in the "many" side
+
+- **preferred** representation using references
+- allows for large documents an a high count of these
+- No need to manage the references on the "one" side.
+
+
+
+**Recap :**
+
+- Prefer embedding over referencing for **simplicity**, or when there is a **small number of referenced documents** as all related information is kept together.
+- Embed on the side of **the most queried collection**
+- Prefer referencing when the associated documents are not always needed with the most often queried documents
+
+
+
+### Many-to-Many Relationship
+
+  #### Embed
+
+##### array of subdocuments in the main "many" side
+
+- the documents from the less queried side are embedded
+- results in duplication
+- **keep "source" for the embedded documents in another collection**
+  - For example , if you have a cart of items, in additions to the array of items embedded in the cart collection, we need another item collection. The point is, in case we delete the cart, all its items can be still used by other collection in the database (a source for it ) 
+  - Do this for mainly static fields (if an item doesn't change much for example ), if they are dynamic, then it's not preferred.
+- indexing is done on the array
+
+##### array of subdocuments in the other "many" side
+
+Usually, only the most queried side is considered
+
+#### Reference
+
+##### array of references in the main "many" side.
+
+- array of references to the documents of the other collection
+- references readily available upon first query on the "main" collection.
+
+##### array of references in the other "many" side.
+
+- array of references to the documents of the other collection
+- need a second query to get more information
+
+
+
+Recap :
+
+- Ensure it is a "many-to-many" relationship that should not be simplified
+- a "many-to-many" relationship can be replaced by two "one-to-many" relationships **but does not have to do with the document model**.
+- Prefer embedding on **the most queried side**.
+- Prefer embedding for information that is primarily static over time and may **profit from duplication**.
+- Prefer referencing over embedding **to avoid managing duplication**.
+
+### One-to-One Relationship
+
+#### Embed
+
+##### Fields at same level
+
+- most common, similar to tabular databases
+
+##### Grouping in sub-documents
+
+- For example : group address to `shipping address` sub-document and `address` sub-document 
+- **preferred representation** :
+  - preserves simplicity
+  - documents are clearer
+
+#### Reference
+
+##### same identifier in both documents
+
+- Divide the fields into two collections, and create a reference between the two (`storeid` in both collections for example)
+- Possible performance improvements with :
+  - Smaller disk access.
+  - Smaller amount of Ram needed.
+
+
+
+**Recap :**
+
+- Prefer embedding over referencing for simplicity
+- Use subdocuments to organize the fields
+- Use a reference for optimization purposes
+
+
+
+### One-to-Zillions Relationship
+
+we use only one representation : **Reference** in the "zillions" side
+
+## Chapter 3: Patterns (Part 1)
+
+### Handling Duplication, Staleness and Integrity
+

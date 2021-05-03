@@ -927,14 +927,12 @@ go :- sum_to(1, X), foo(apples).
 
 #### 4.3.2 The “cut-fail” Combination
 
-- the cut is used in conjunction with the built-in fail predicate. This is another built-in predicate, like \+. It has no arguments, which means that the success of the goal fail does not depend on what any variables stand for. Indeed, fail is defined in such a way that as a goal it always fails and causes backtracking to take place. 
+- the cut is used in conjunction with the built-in fail predicate. This is another built-in predicate, like `\+`. It has no arguments, which means that the success of the goal fail does not depend on what any variables stand for. Indeed, fail is defined in such a way that as a goal it always fails and causes backtracking to take place. 
 - This is just like what happens if we try to satisfy a goal for a predicate with no facts or rules. When fail is encountered after a cut, the normal backtracking behavior will be altered by the effect of the cut. In fact, the particular combination “cut-fail” turns out to be quite useful in practice.
 
 Example : 
 
 - If we have a foreigner then we should fail and stop searching for other alternatives 
-
-
 
 ```
 average_taxpayer(X) :- foreigner(X), !, fail.
@@ -967,8 +965,6 @@ investment_income(X, Y) :- ...
 - After this, there are goals that check whether a solution generated is acceptable for some purpose. If these goals fail, backtracking will lead to another solution being proposed. This will be tested for appropriateness, and so on. 
 - This process will stop when either an acceptable solution is generated (success), or when no more solutions can be found (failure)
 - We can call the goals that are yielding all the alternatives the “generator” and those that check whether a solution is acceptable the “tester”. 
-
-
 
 ##### Example : Tic Tac Toe
 

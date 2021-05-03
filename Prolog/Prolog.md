@@ -719,5 +719,314 @@ partsoflist([P|Tail], Total) :-
 
 ### 3.7 Accumulators
 
-> TODO
+- Using an intermediate variable to store result while traversing the structure (like an `i` in `for` loop)
+
+**With accumulators we will generally have `functor([], A, A).` in order to define the finish condition of accumulation**
+
+#### Calculating length recursively (traditional approach)
+
+```
+listlen([],0).
+listlen([H|T],N) :- listlen(T,N1),N is N1+1.
+```
+
+#### Calculating length using an accumulator
+
+```
+lenacc([], A, A).
+lenacc([H|T], A, N) :- A1 is A + 1, lenacc(T, A1, N)
+```
+
+##### Notes
+
+- All N's share. So when its value is changed all parent shared versions will be changed too
+
+#### Relation between both approaches
+
+```
+listlen(L, N) :- lenacc(L, 0, N). /* we start from 0 and we increment */
+```
+
+
+
+#### Using accumulators to optimize rules and facts
+
+##### bikes example using accumulators
+
+- `partsacc(X,A,P)` : means that the parts of object X, when added to the list A, give the list P.
+- `A` : accumulator that represents t**he list of (basic) parts that have been found so far.**
+
+```
+% partsof(X, P) :- partsacc(X, [], P).
+
+partsacc(X, A, [X|A]) :- basicpart(X).
+partsacc(X, A, P) :- 
+	assembly(X, Subparts),
+	partsacclist(Subparts, A, P).
+
+partsacclist([], A, A).
+partsacclist([P|Tail], A, Total) :-
+	partsacc(P, A,Hp),
+	partsacclist(Tail, Hp, Total).
+```
+
+### 3.8 Difference Structures
+
+- **With accumulators**, we use two arguments to organize the building of some output structure. One is for “the result so far” and one is for the “final result”. 
+- **With difference lists**, we also use two arguments, but with a different interpretation. The first argument is for the “final result”, and the second argument is for a “hole in the final result where further information can be put”. 
+
+> get back to this
+
+## Chapter 4 : Backtracking and the “Cut”
+
+1. An attempt can be made to satisfy a goal. When we satisfy a goal, we search the database from the top. Two things can happen:
+   1. A unifying fact (or rule head) can be found. In this case, we say the goal has been matched. We mark the place in the database, and instantiate any previously uninstantiated variables that have unified. If we matched against a rule, we shall first have to attempt to satisfy the sub goals introduced by the rule. If the goal succeeds, we then attempt to satisfy the next goal. In our diagrams, this is the goal in the next box below the arrow. If the original goal appears in a conjunction, this will be the goal to its right in the program.
+   2.  No unifying fact (or rule head) can be found. In this case, we say the goal has failed. We then attempt to re-satisfy the goal in the box above the arrowhead. If the original goal appears in a conjunction, then this will be the goal on its left in the program.
+2. We can attempt to re-satisfy a goal. First of all, we attempt to re-satisfy each of the `subgoals` in turn, the arrow retreating up the page. If no `subgoal` can be re-satisfied in a suitable way, we attempt to find an alternative clause for the goal itself. In this case, we must make uninstantiated any variables that became instantiated when the previous clause was chosen. This is what we mean by **“undoing”** all the work previously done by this goal. Next, we resume searching the database, but we begin the search from where the goal’s place-marker was previously put. As before, this new “backtracked” goal may either succeed or fail, and either step (1) or (2) above would occur.
+
+### 4.1 Generating Multiple Solutions
+
+The simplest way a set of facts can allow multiple solutions to a question is when there are several facts that will match against the question.
+
+#### Example 1 :
+
+##### Input 
+
+```
+possible_pair(X, Y) :- boy(X), girl(Y).
+boy(john).
+boy(marmaduke).
+boy(bertram).
+boy(charles).
+girl(griselda).
+girl(ermintrude).
+girl(brunhilde).
+```
+
+##### Output : 
+
+```
+?- possible_pair(X, Y).
+X = john, Y = griselda ;
+X = john, Y = ermintrude ;
+X = john, Y = brunhilde ;
+X = marmaduke, Y = griselda ;
+X = marmaduke, Y = ermintrude ;
+X = marmaduke, Y = brunhilde ;
+X = bertram, Y = griselda ;
+X = bertram, Y = ermintrude ;
+X = bertram, Y = brunhilde ;
+X = charles, Y = griselda ;
+X = charles, Y = ermintrude ;
+X = charles, Y = brunhilde
+```
+
+
+
+#### Example 2 : membership 
+
+```
+member(X, [X|_]).
+member(X, [_|Y]) :- member(X, Y).
+```
+
+```
+?- member(a, [a,b,r,a,c,a,d,a,b,r,a]). /* will succeed 5 times */
+```
+
+- To make it succeed only once we use the **Cut**
+
+### 4.2 The “Cut”
+
+- The “cut” allows you to tell Prolog which previous choices it need not consider again when it backtracks though the chain of satisfied goals. There are **two reasons** why it may be important to do this:
+  - Your program will **operate faster** because it will not waste time attempting to satisfy goals that you can tell beforehand will never contribute to a solution;
+  - Your program may occupy **less of the computer’s memory space** because more economical use of memory can be made if backtracking points do not have to be recorded for later examination
+
+
+
+
+
+Example : 
+
+```
+facility(Pers, Fac) :-
+    book_overdue(Pers, Book),
+    !,
+    basic_facility(Fac)
+facility(Pers, Fac) :- general_facility(Fac).
+basic_facility(reference).
+basic_facility(enquiries).
+additional_facility(borrowing).
+additional_facility(inter_library_loan).
+general_facility(X) :- basic_facility(X).
+general_facility(X) :- additional_facility(X).
+
+client(’A. Jones’).
+client(’W. Metesk’)
+book_overdue(’C. Watzer’, book10089).
+book_overdue(’A. Jones’, book29907)
+```
+
+
+
+
+
+- When the cut is encountered, it “cuts” the flow of satisfaction line so that if it is forced to retreat beyond this point it will have to take a short cut (go bac to facility , and can never satisfy the same rule again while backtracking)
+
+- In summary, the effect of the cut in this example is to say: 
+
+> If a client is found to have an overdue book, then only allow the client the basic facilities of the library. Don’t bother going through all the client’s overdue books, and don’t consider any other rule about facilities
+
+- In this example, the cut committed the system to all the decisions made from it back to the facility goal. This is called the **parent goal** of the cut goal
+
+> **When a cut is encountered as a goal, the system thereupon becomes committed to all choices made since the parent goal was invoked. All other alternatives are discarded. Hence an attempt to re-satisfy any goal between the parent goal and the cut goal will fail.**
+
+- In other words, only one alternative, if it exists, will be taken in consideration, if something fails afterward and we backtrack to the cut , we get all the way up to the parent goal of the rule
+
+### 4.3 Common Uses of the Cut
+
+- We can divide the common uses of “cut” into three main areas:
+  - The first concerns places where we want to tell the Prolog system that it has found the right rule for a particular goal. Here, the cut says, “if you get this far, you have picked the correct rule for this goal.”
+  - The second concerns places where we want to tell the Prolog system to fail a particular goal immediately without trying for alternative solutions. Here, we use the cut in conjunction with the fail predicate to say, “if you get to here, you should stop trying to satisfy this goal.”
+  - The third concerns places where we want to terminate the generation of alternative solutions through backtracking. Here, the cut says, “if you get to here, you have found the only solution to this problem, and there is no point in ever looking for alternatives.”
+
+
+
+#### 4.3.1 Confirming the Choice of a Rule
+
+```
+sum_to(1, 1) :- !.
+sum_to(N, Res) :-
+    N1 isN-1,
+    sum_to(N1, Res1),
+    Res is Res1 + N.	
+```
+
+- If Prolog ever backtracks and comes to reconsider the choice of rule when applied to the number 1, it will find that the second rule is applicable. 
+- As far as it can see, both rules provide alternatives for the goal sum_to(1, X). We must tell it that on no account is the second rule ever to be tried if the number is 1. 
+- One way of doing this is to put a cut in the first rule (as shown). **This tells Prolog that, once it has got this far in the first rule, it must never remake the decision about which rule to use for the sum_to goal. It will only get this far if the number is in fact 1.**
+
+
+
+Example 2 : 
+
+```
+go :- sum_to(1, X), foo(apples).
+?- go.
+```
+
+- the goal foo(apples) fails, then at the point of failure we will jump past  sum_to(1,X), because both its goals cannot be satisfied (because of the cut inside), then it will backtrack past that point and will try to find another definition for { `go`
+
+#### `\+` Predicate : 
+
+- Predicate `\+` is defined in such a way that the goal `\+X` succeeds only if X, when seen as a Prolog goal, fails. So `\+X` means that “X is not satisfiable as a Prolog goal”
+
+- Can be used to replace cut 
+
+
+
+#### 4.3.2 The “cut-fail” Combination
+
+- the cut is used in conjunction with the built-in fail predicate. This is another built-in predicate, like \+. It has no arguments, which means that the success of the goal fail does not depend on what any variables stand for. Indeed, fail is defined in such a way that as a goal it always fails and causes backtracking to take place. 
+- This is just like what happens if we try to satisfy a goal for a predicate with no facts or rules. When fail is encountered after a cut, the normal backtracking behavior will be altered by the effect of the cut. In fact, the particular combination “cut-fail” turns out to be quite useful in practice.
+
+Example : 
+
+- If we have a foreigner then we should fail and stop searching for other alternatives 
+
+
+
+```
+average_taxpayer(X) :- foreigner(X), !, fail.
+average_taxpayer(X) :-
+    spouse(X, Y),
+    gross_income(Y, Inc),
+    Inc > 3000,
+    !, fail.
+average_taxpayer(X) :-
+    gross_income(X, Inc),
+    2000 < Inc, 20000 > Inc.
+gross_income(X, Y) :-
+    receives_pension(X, P),
+    P < 5000,
+    !, fail.
+gross_income(X, Y) :-
+    gross_salary(X, Z),
+    investment_income(X, W),
+    Y is Z + W.
+investment_income(X, Y) :- ...
+```
+
+
+
+- This is used to avoid checking for foreigner(X) in each of the rules.
+
+#### 4.3.3 Terminating a “generate and test”
+
+- Very often a program will have parts that conform to the following general model. There will be a sequence of goals that can succeed in many ways, and which generates many possible solutions on backtracking. 
+- After this, there are goals that check whether a solution generated is acceptable for some purpose. If these goals fail, backtracking will lead to another solution being proposed. This will be tested for appropriateness, and so on. 
+- This process will stop when either an acceptable solution is generated (success), or when no more solutions can be found (failure)
+- We can call the goals that are yielding all the alternatives the “generator” and those that check whether a solution is acceptable the “tester”. 
+
+
+
+##### Example : Tic Tac Toe
+
+- line(B,X,Y,Z) : instantiates the arguments X,Y,Z to the three squares that make up a line in board B:
+
+```
+line(b(X,Y,Z,_,_,_,_,_,_), X, Y, Z).
+line(b(_,_,_,X,Y,Z,_,_,_), X, Y, Z).
+line(b(_,_,_,_,_,_,X,Y,Z), X, Y, Z).
+line(b(X,_,_,Y,_,_,Z,_,_), X, Y, Z).
+line(b(_,X,_,_,Y,_,_,Z,_), X, Y, Z).
+line(b(_,_,X,_,_,Y,_,_,Z), X, Y, Z).
+line(b(X,_,_,_,Y,_,_,_,Z), X, Y, Z).
+line(b(_,_,X,_,Y,_,Z,_,_), X, Y, Z).
+```
+
+```
+forced_move(Board) :-
+    line(Board, X, Y, Z),
+    threatening(X, Y, Z),
+    !.
+```
+
+```
+threatening(e, x, x).
+threatening(x, e, x).
+threatening(x, x, e).
+```
+
+
+
+> “when I look for forced moves, it is only the first solution that is important.”
+
+### 4.4 Problems with the Cut
+
+- For, whereas a cut when a rule is used one way can be harmless or even beneficial, the very same cut can cause strange behavior if the rule is suddenly used in another way
+
+Example : 
+
+```
+?- append(X, Y, [a,b,c]). 
+```
+
+
+
+- This goal will match the head of the first rule, giving: 
+  - `X=[], Y=[a,b,c]` 
+- but now the cut is encountered. This will freeze all the choices we have made, and so if we ask for another solution, the answer will be `no` even though there actually are other solutions to the question.
+
+> If you introduce cuts to obtain correct behavior when the goals are of one form, there is no guarantee that anything sensible will happen if goals of another form start appearing.
+
+- It follows that it is only possible to use the cut reliably if you have a clear policy about how your rules are going to be used. If you change this policy, all the uses of cut must be reviewed.
+
+## Chapter 5 : Input and Output
+
+## Chapter 6 : Built-in Predicates
+
+## Chapter 7 : More Example Programs
+
+## Chapter 10 : The Relation of Prolog to Logic
 

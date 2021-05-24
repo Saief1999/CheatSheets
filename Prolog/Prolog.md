@@ -881,7 +881,7 @@ book_overdue(’A. Jones’, book29907)
 
 > **When a cut is encountered as a goal, the system thereupon becomes committed to all choices made since the parent goal was invoked. All other alternatives are discarded. Hence an attempt to re-satisfy any goal between the parent goal and the cut goal will fail.**
 
-- In other words, only one alternative, if it exists, will be taken in consideration, if something fails afterward and we backtrack to the cut , we get all the way up to the parent goal of the rule
+- In other words, only one alternative, if it exists, will be taken in consideration, if something fails afterward and we backtrack to the cut , we get all the way up to the parent goal of the rule that introduced the cut. **if the parent goal is a root goal, the program will stop right there, otherwise will `cut` to the goal that introduced this parent goal and searches for other alternatives if they exist (always go up two levels)** 
 
 ### 4.3 Common Uses of the Cut
 
@@ -905,8 +905,6 @@ sum_to(N, Res) :-
 - If Prolog ever backtracks and comes to reconsider the choice of rule when applied to the number 1, it will find that the second rule is applicable. 
 - As far as it can see, both rules provide alternatives for the goal sum_to(1, X). We must tell it that on no account is the second rule ever to be tried if the number is 1. 
 - One way of doing this is to put a cut in the first rule (as shown). **This tells Prolog that, once it has got this far in the first rule, it must never remake the decision about which rule to use for the sum_to goal. It will only get this far if the number is in fact 1.**
-
-
 
 Example 2 : 
 
@@ -1018,11 +1016,51 @@ Example :
 
 - It follows that it is only possible to use the cut reliably if you have a clear policy about how your rules are going to be used. If you change this policy, all the uses of cut must be reviewed.
 
-## Chapter 5 : Input and Output
-
-## Chapter 6 : Built-in Predicates
-
 ## Chapter 7 : More Example Programs
+
+### 7.1 A Sorted Tree Dictionary
+
+#### Introductory example 
+
+```
+winnings(abaris, 582).
+winnings(careful, 17).
+winnings(jingling_silver, 300).
+winnings(maloja, 356).
+```
+
+- searching `winnings(maloja, X)` will have to look from top to bottom ( **not efficient** ) , one way to solved this is using a **sorted tree**.
+
+#### What is a Sorted tree ?
+
+- A sorted tree consists of some structures called nodes, where there is one node for each entry in the dictionary. Each node has **four** components.
+- One of these components, called the **key**, is the one whose name determines its place in the dictionary (the name of the horse in our example). The **other item** is used to store any other information about the object involved (the winnings in our example).
+-  In addition, each node contains a **tail** (like the tail of a list) to a node containing a key whose name is alphabetically less than the name of the key in the node itself. Furthermore, the node contains **another tail**, to a node whose name is alphabetically greater than the key in the node.
+
+
+
+```
+% THIS NEEDS TO BE GIVEN IN PARAMETER : 
+% LIKE lookup(H,w(....),G).
+% OTHERWISE, a new w will be created instead
+%w(massinga,858,w(braemar,385,w(adela,588,_,_),_),w(panorama,158,w(nettleweed,579,_,_),_)).
+
+lookup(H, w(H,G,_,_), G1) :-!, G=G1.
+lookup(H, w(H1,_,Before,_), G) :-H @< H1,lookup(H, Before, G).
+lookup(H, w(H1,_,_,After), G) :-H @> H1,lookup(H, After, G).
+```
+
+
+
+- If we do `lookup(abaris, X, 582), lookup(maloja, X, 356).`
+  1. X will be instantiated as a `w(abaris,582,_,_)`
+  2. first clause won't unify (because x , is instantiated), so one of the other 2 clauses will be called , and then `after` or `before` will be instantiated (in this case after because m>a)
+
+
+
+### 7.2 Searching a Maze
+
+
 
 ## Chapter 10 : The Relation of Prolog to Logic
 

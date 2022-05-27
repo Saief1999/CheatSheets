@@ -10,7 +10,6 @@
   - A *producer* is a user application that sends messages.
   - A *queue* is a buffer that stores messages.
   - A *consumer* is a user application that receives messages.
-
   
 
 - the producer can only send messages to an *exchange*. 
@@ -112,7 +111,6 @@ From now on the `logs` exchange will append messages to our queue.
 
 
 
-
 #### Bindings 
 
 - A binding is a relationship between an exchange and a queue. This can be simply read as: the queue is interested in messages from this exchange.
@@ -172,7 +170,6 @@ for(String severity : argv){
 ```
 
 
-
 ---
 
 Final Notes :
@@ -181,4 +178,3 @@ Final Notes :
 
 - One Queue two consumers (workers) : they get the messages in a round robin way , to prevent this we change the prefetch config , however each consumer consumes exactly one message from the queue.
 - To make many consumers get the same message , we use one queue per consumer and we relate them to an exchange , we make that exchange fanout/direct/topic  ....
-

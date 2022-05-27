@@ -29,5 +29,4 @@ brut.androlib.AndrolibException: brut.common.BrutException: could not exec (exit
 
 
 
-> Check the other cheat sheet if stuck 
-> (in `C:\Users\saief\OneDrive\Documents\Cracking\APIS`)
+> Check the other cheat sheet if stuck in the `APIS` folder ( local )

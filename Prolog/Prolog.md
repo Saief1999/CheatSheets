@@ -81,8 +81,6 @@ no
 yes
 ```
 
-
-
 - **no** :  nothing **unifies** with the question.
 - **no** is the same as **false**.
 - Example 3 :
@@ -146,8 +144,6 @@ X = flowers
   4. X is **instantiated** to flowers. Prolog now **marks** the place in the database where a unifier is found.
   5. If we hit "Enter", we are satisfied we the answer , if we hit ";", Prolog must forget that X stands for flowers, and resume searching with X `uninstantiated` again. Because we are searching for an alternative solution, the search is continued from the **place-marker**. (will give us `X = Mary` )
   6. if we hit ";" it returns **no**.
-
-​    
 
 #### Example 2 (same database) : 
 
@@ -503,9 +499,7 @@ X mod Y the remainder of X divided by Y
 - The “elements” of a list may be any terms — constants, variables, structures — which of course includes other lists.
 - A list is either :
   - an empty list, having no element :
-    
     - `[]`
-    
   - it is a structure that has two components: the **head** and **tail**.
   
   - the head of the list is the first element of the list.
@@ -517,15 +511,15 @@ X mod Y the remainder of X divided by Y
       -  the list consisting of the atoms a, b and c is written `.(a,.(b,.(c,[])))`,
   
     - we can also use another notation , called the `list notation` : `[a]`
-    
-    - | List                    | Head       | Tail               |
-      | ----------------------- | ---------- | ------------------ |
-      | [a,b,c]                 | a          | [b,c]              |
-      | []                      | (none)     | (none)             |
-      | [[the, cat], sat]       | [the, cat] | [sat]              |
-      | [the, [cat, sat]]       | the        | [[cat, sat]]       |
-      | [the, [cat, sat], down] | the        | [[cat, sat], down] |
-      | [X+Y,x+y]               | X+Y        | [x+y]              |
+
+| List                    | Head       | Tail               |
+| ----------------------- | ---------- | ------------------ |
+| [a,b,c]                 | a          | [b,c]              |
+| []                      | (none)     | (none)             |
+| \[\[the, cat], sat]     | \[the, cat]| [sat]              |
+| [the, [cat, sat]]       | the        | \[\[cat, sat]]       |
+| [the, [cat, sat], down] | the        | \[\[cat, sat], down] |
+| [X+Y,x+y]               | X+Y        | [x+y]              |
 
 - Notice that the empty list has neither a head nor a tail. When we try to unify it with [X|Y] **it will fail.**
 
@@ -550,7 +544,7 @@ Examples 2 :
 | [X, Y, Z]     | [john, likes, fish]     | X = john Y = likes Z = fish      |
 | [cat]         | [X\|Y]                  | X = cat Y = []                   |
 | [X, Y\|Z]     | [mary, likes, wine]     | X = mary Y = likes Z = [wine]    |
-| [[the, Y]\|Z] | [[X, hare], [is, here]] | X = the Y = hare Z = [[is,here]] |
+| [[the, Y]\|Z] | \[\[X, hare], \[is, here]] | X = the Y = hare Z = \[\[is,here]] |
 | [golden\|T]   | [golden, norfolk]       | T = [norfolk]                    |
 | [vale, horse] | [horse, X]              | (NONE)                           |
 | [white\|Q]    | [P\|horse]              | P = white Q = horse              |

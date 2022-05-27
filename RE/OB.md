@@ -26,13 +26,9 @@
     - Left : `name="blahblash" value="`
     - Right : `"/>`
 
-    
-
-    
-
 - IF the mode is JSON , instead of prefix/suffix we add the `field Name` and we specify the name
   
-  - The field will be extracted inside the specified variable
+- The field will be extracted inside the specified variable
 
 
 
@@ -44,7 +40,7 @@
 2. the Content Type  , in case the content type says it's text/html , we leave it as `application/x-www-form-urlencoded` , however if it's `application/json` we need to change it
 3. POST Data : 
    1. we check the form body and hit sources (inside the request in the browser)
-   2. we copy the body source, paste it , and then add <USER> <PASS> (Global variables given by the user , can be tested while building the config) and  <csrf> (the name of the Var)
+   2. we copy the body source, paste it , and then add `<USER> <PASS>` (Global variables given by the user , can be tested while building the config) and  `<csrf>` (the name of the Var)
       1. **IMPORTANT** : Variables are case sensitive
 4. Origin (we copy and paste it inside the custom header)
 5. Referrer (same)
@@ -72,7 +68,7 @@
 
 **IMPORANT** : To test  in the debugger :we set the data type as credentials and we put `user:pass`
 
-- Content of the data will be parsed into <USER> and <PASS> global variables
+- Content of the data will be parsed into `<USER>` and `<PASS>` global variables
 
 
 
@@ -115,7 +111,7 @@
    2. the page URL(it can be a popup, so we need to put the new page)
    3. we click Auto site Key (will auto grab the key from the site , if it doesn't work there's a way to grab manually)
 3. We do the POST REQUEST
-   1. We add the <user> <pass> , other stuff depending on the body , then we add the `recaptcha` **name**  ( which depend of the body ) and **value** that we grabbed inside the variable <recaptcha>
+   1. We add the `<user> <pass>` , other stuff depending on the body , then we add the `recaptcha` **name**  ( which depend of the body ) and **value** that we grabbed inside the variable `<recaptcha>`
 4. we grab User-agent,origin,referrer,Host  (As usual) and we add them to the custom headers
 
 **IMPORTANT** : 
@@ -123,8 +119,6 @@
 - We can put the global variables inside the header , body , or even the Key check ! (inside the keys)
 
 - we can put `DoesNotContain` for Failure !
-
-
 
 ---
 

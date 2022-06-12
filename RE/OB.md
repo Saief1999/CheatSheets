@@ -1,9 +1,6 @@
 # Creating a complex Config
 
 
-
-
-
 **IMPORTANT** : we need to add as much headers as it's needed for the link to work
 
 ### Get request

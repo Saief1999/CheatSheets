@@ -1,6 +1,5 @@
 # Qt
 
-[TOC]
 
 Qt is a set of libraries written in `C++`
 

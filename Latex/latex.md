@@ -251,6 +251,8 @@ There Are two methods to separate a large document into separate files. We can e
 
 acts as though the contents of the file were typed where the \input command was. 
 
+We can also nest `\input` , `\include` won't allow it.
+
 ### `\include{filename}`
 
 does more than just input the contents of the file. It also starts a new page (using `\clearpage`) and creates an auxiliary file associated with the included file. It also issues another `\clearpage` once the file has been read in. 

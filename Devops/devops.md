@@ -142,3 +142,580 @@ Any device needs 3 pieces of data for communication
 
 
 #### Features of Repository Manager 
+
+- Integrates with LDAP
+- flexible and prowerful REST API for integration with other tools
+	- For build automation / CICD ( push to Nexus after building the jar on Jenkins , then send it from nexus to your server  )
+- backup and restore
+- multiple repository type support ( different file types - zip, tar, docker ect. )
+- metadata tagging ( labeling and tagging artifacts )
+- cleanup policies ( cleanup unnecessary artifacts ) -> automatically delete files that match condition for example
+- Search functionality
+- user token support for system user authentication
+
+### Installation
+
+after untaring the tar
+- Nexus : contains binaries to run nexus
+- sonartype-work/nexus : contains own config for Nexus and data ( so when we uninstall the binary we won't uninstall the config)
+	- subdirectories depending on your Nexus configuration
+	- IP address that accessed Nexus
+	- Logs of Nexus App
+	- Your uploaded files and metadata
+	- You can use this folder for backup
+
+Starting Nexus : 
+  - Services should not run with Root user permissions
+  - **Best practice** : Create own User for Service ( e.g Nexus) having only the privileges it needs
+
+---
+
+We create a new user `nexus`
+
+then we change the ownership( user:group) of our directories to the nexus user
+
+```bash
+sudo chown -R nexus:nexus nexus-3.40.1-01
+sudo chown -R nexus:nexus sonatype-work/
+```
+
+we need to give read/write privileges to sonartype-work folder and execute privilege to nexus executable
+
+
+```bash
+vim nexus-3.40.1-01/bin/nexus.rc
+
+# change run_as_user="nexus"
+
+su - nexus
+
+/opt/nexus-*/bin/nexus start
+
+
+netstat -lnpt # see currently listening ports
+```
+
+
+**Note: Nexus Web server is listening on port 8081**
+
+default admin password can be found under `/opt/sonartype-work/nexus3/admin.password` , username is admin
+
+after logging in for the first time we need to change the password , ours is `********` (numeric) , same password for the linux user `nexus`
+
+Disable anonymous access
+
+### Repository types in Nexus
+
+You can have repositories of different formats
+
+repositories can be : 
+- **proxy** : linked to a remote repository (e.g mvn central repo)
+	- When an archive is needed ( a jar for example ) we check whether it's available locally on the proxy. Otherwise the request will be forwarded to the remote repository and then it will be stored locallly on nexus(cached), which saves bandwidth and centralizes different dependency/archive requests that the different teamsin the organization might have.
+	- This can be applied  on mvn packages , docker images ( on dockerhub for example ) or even npm packages 
+	- we generally need to configure the **Remote storage** to connect it to t
+- **hosted** : Eveything that is developed is being stored on nexus
+	- maven releases/snapshots are used by default to store maven based java artifact
+	- when we develop in java , development version is SNAPSHOT which needs to be tested. then we have the release that's ready for production
+	- maven-releases is the repository where the orgnaization publishes its releases. it can be also used to store third party artifacts that are not available in public ( commercial for example ) and cannot be retrieved by a proxy
+	- maven-snapshots : where the organization pblishes development snapshots 
+- **group** : 
+	- allows you to combine multiple repositories of different types into one single repository. one url instead of many, single endpoint to maintain.
+
+
+### Uploading a jar to Nexus
+
+- Upload Jar File to existing hosted repository on Nexus
+- Maven/Gradle commabd for pushing to remote repository
+- Configure both tools to connect to Nexus ( Nexus Repo URL + Credentials )
+- Nexus User with permission to upload 
+
+
+#### Creating a local user
+
+under Settings > User -> `saief1999:********` -> nx-anonymous role
+
+![[../resources/create-user-nexus.png]]
+
+then we will create a role for this user having the Id and name `nx-java`
+
+admin-privilege > for nexus admins
+
+nexus user ( developers ) generally get the privilege view ( to upload new artifacts to nexus )
+
+we then assign that role to our created user
+
+
+
+## AWS
+
+### Overview
+
+There are 3 scopes for services within AWS
+
+- Global Scope : Attached to your account ( IAM, billing, Route53 )
+	- Region scope ( S3, VPC, DynamoDB ) 
+		- Availability zone scope ( EC2, EBS, RDS )
+
+### Identity and Access Management ( IAM )
+
+- Manage access to AWS services & resources
+- Create and manage aws users and groups & assign policies ( set of permissions )
+- **By Default** we have a ROOT user
+	- ROOT user has **unlimited privileges**
+	- it's advisable to create an **admin user** with less privileges when we first create the account.
+
+After creating an admin user, we should use it to create different other users ( human users & other teams ) and assign to them different permissions. We can also create groups and manage our users in groups.
+
+we can also have **System users**. for example a user for **jenkins** to deploy docker containers on AWS. Or can use a jenkins user to push docker images to AWS docker repo.
+
+
+#### IAM Roles vs IAM Users
+
+- Users : Human / System users can use services like EC2 only if the right **policy** is assigned to this IAM user.
+
+- However, if we want ECS / EKS for example to have access to EC2 and to be able to spin up EC2 instances & configure them. We can't have **policies** assigned to it directly. We need to attach the **Policy** to an **IAM Role** and then assign the **IAM Role** to the ECS / EKS service.
+
+
+---
+
+#### Practical
+
+Go to IAM -> create user and name it admin. give it the administrator policy and confirm
+
+---
+
+### Regions & Availability zones
+
+- Regions : Physical location, where data centers are clustered. ( N.virginia, Ohio, Frankfurt... )
+
+- Availability zone : 1 or more discrete data centers within a region that are used for replication.
+
+
+### Virtual Private Cloud : VPC
+
+- VPC is your **own isolated network** in the cloud for each region.
+
+- VPC spans across all the availability zones in each region.
+
+- it's a virtual representation of network infrastructure.
+
+  - Setup of servers, network configuration moved to cloud.
+
+
+#### Subnets : 
+
+- There are sub networks of the VPC. 
+
+- We have a Subnet for each availability zone.
+
+##### Private & Public subnet
+
+- when we block external traffic to EC2 instances for examples. that's a **private subnet**. These EC2 instances won't be acced externally. However other services inside the VPC will **still have access**
+	- For example for a DB. Which we want to make private.
+
+- a public subnet however is generally accessible externally ( e.g. for a web application )
+
+
+##### IP Addresses
+
+- Within each VPC we have an **internal** IP address **range**
+- not for outside web traffic. For communication inside VPC
+- Each subnet also gets a sub-range from the VPC range.
+
+
+- when we create an EC2 instance, it gets a private IP address ( from the IP address range of the VPC ). In addition to a public IP address ( in order to be accessed externally ).
+
+##### Controlling Access
+
+- We have an **Internet Gateway** to connect the VPC to the outside internet.
+
+- We need to make sure our components are **well secured** by controlling access to the **VPC** and to the **individual service instances**
+
+- To configure access on **subnet level** we use **Network Access Control List** (NACL)
+
+- To configure access on **instance level** we use **Security Groups**
+
+
+
+### CIDR Block
+
+- It is a range of IP Addresses. Example `172.31.0.0/16`
+- for example `/32` will give us only 1 ip address , `/16` will give us 65k addresses.
+
+### Elastic Compute Cloud (EC2)
+
+- Virtual server in AWS cloud
+- provides computing capacity
+
+---
+
+#### Practical
+
+1. create EC2 instance
+	1. Choose OS image
+	2. Choose Capacity
+	3. Network configuration
+	4. Add Storage 
+	5. Add Tags
+	6. Configure Secutiry group
+2. Connect EC2 instance with ssh
+3. Install Docker on remote EC2 instance
+	1. `yum update` if we're using amazon linux
+	2. `sudo yum install docker` 
+	3. `systemctl start docker`
+	4. `sudo usermod -aG docker $USER`
+5. Run docker container (docker login, pull, run) from private repo
+6. Configure EC2 firewall to access App externally from browser
+	1. Inboud rules ( Traffic coming to server ) -> add port 3080 from 0.0.0.0/0
+	2. Outbound rules ( Traffic leaving the server ) -> leave it the same
+
+---
+
+
+### AWS CLI
+
+- commands for every AWS service and resource.
+
+To start configure AWS CLI we do `aws configue`
+
+We put our Access and secret key for the user. We select our default region ( for the resources ). And the default output format ( what we get after executing a command -> `json` is good ).
+
+#### Command Structure
+
+```bash
+aws <command> <subcommand> [ options & params ]
+```
+
+- `command` : The AWS service ( ec2, s3, ... )
+- `subcommand` : specifies the operation to perform
+
+#### AWS EC2 CLI
+
+to create an instance, we do : 
+
+```bash
+aws ec2 run-instances
+--image-id ami-xxxxxx \
+--count 1 \
+--instance-type t2.micro \
+--key-name my-kp-cli \
+--security-group-ids sg-xxxxxxx \
+--subnet-id subnet-xxxxxxx
+
+# Real example, with amazon linux and a custom key pair
+aws ec2 run-instances --image-id ami-0e2031728ef69a466 \
+--count 1 \
+--instance-type t2.micro \
+--key-name my-kp-cli \
+--security-group-ids sg-03ee06bb99ca111db \
+--subnet-id subnet-032e88e997ed10099
+```
+
+to check our instances we do 
+
+```bash
+aws ec2 describe-instances
+```
+
+
+to check our available security groups we do 
+
+```bash
+aws ec2 describe-security-groups [ --group-ids sg-xxxx sg-yyyy ]
+```
+
+to check our vpcs we do 
+
+```bash
+aws ec2 describe-vpcs
+```
+
+to create a security group we do this ( a sg is associated to a certain vpc ): 
+
+```bash
+aws ec2 create-security-group --group-name my-sg --descrtiption "My SH" --vpc-id OurvpcId
+```
+
+to add a rule to our newly created security group, we do this ( we can change cidr to our ip address with a certain range, to give access to only our machine via ssh ) : 
+
+```bash
+aws ec2 authorize-security-group-ingress  --group-id sg-xxxx --protocol tcp  --port 22 --cidr 0.0.0.0/0
+```
+
+
+##### Key Pair 
+
+```bash
+aws ec2 create-key-pair --key-name my-kp-cli --query 'KeyMaterial' --output text > my-kp-cli.pem
+```
+
+
+##### Filtering and Querying  in the describe command ( similar to jq )
+
+- Filter : Pick components 
+
+- Query : pick specific attributes of components
+
+```bash
+aws <command> describe-xxx --filters "Name=fieldName,Values=fieldValue1,fieldValue2" --query ".field1" 
+```
+
+examples : 
+
+```bash
+aws ec2 describe-instances --filters "Name=instance-type,Values=t2.micro" --query "Reservations[].Instances[].InstanceId"
+
+```
+
+
+
+
+## Terraform
+
+### Overview
+
+- automate and manage your infrastructure 
+	- pltaform
+	- services that run on plateform
+
+- open source
+
+- declarative : define WHAT end result you want ( and not imperative -> HOW )
+
+- Used for **provisioning** infrastructure ( in the correct order)
+  - Create VPC
+  - Create AWS users & permissions
+  - spin up servers
+  - install Docker
+
+> Terraform is **Idempotent** : If we apply the same configuration multiple times we get the same result.
+
+#### Terraform vs Ansible 
+
+Both :
+- Infra as code.
+- Automate provisioning, configuring and managing the infrastructure.
+
+Terraform:
+- Mainly infrastucture provisioning tool
+  - CAN deploy apps
+- relatively newer, and more advanced in orchestration than Ansible
+- **Better** : For infrastructure provisioning
+
+Ansible:
+- Mainly a configuration tool
+  - configure that infrastructure ( that's already provisioned)
+  - deploy apps
+  - install / update software 
+- **Better** : For configuring that infrastucture
+
+#### Terraform advantages
+
+- Managing existing infrastructure ( adding more containers, ect...)
+
+- Replicating infrastructure :
+  - Replicate DEV to PROD  to have same infra
+
+- We don't need to rememeber the current state. We just need to know the desired state.
+
+#### Terraform Architecture
+
+- It has 2 main components : 
+	- **Core** : 
+		- which has 2 input sources : 
+			- TF-config
+			- State : current state of infra
+		- Takes input and figures out the **plan** : What needs to be created / updated / destroyed to get the desired state
+	- **Providers** : 
+		- AWS / Azure : IAAS 
+		- Kuberenetes : PAAS
+		- Fastly : SAAS
+		- Through these **providers** you get access to these **resources**.
+
+#### Example Configuration File
+
+##### AWS
+
+```
+# Configure the AWS Provider
+provider "aws" {
+	version = "~> 2.0"
+	region = "us-east-1"
+}
+
+# Create a VPC
+resource "aws_vpc" "example" {
+	cidr_block = "10.0.0.0/16"
+}
+```
+
+##### K8s
+
+```
+# Configure the Kubernetes Provider 
+provider "kubernetes" {
+	config_context_auth_info = "ops"
+	config_context_cluster = "mycluster"
+}
+
+resource "kubernetes_namespace" "example" {
+	metadata {
+		name = "my-first-namespace"
+	}
+}
+```
+
+
+#### Declarative vs Imperative
+
+- Terraform is declarative
+	- You define the **end state** in your config file ( instead of HOW to achieve that end state ). 
+	- e.g. 5 servers with following network config & AWS user with following permissions.
+
+- We see the difference mainly when we want to update our infrastructure ( removing / adding )
+	- **Imperative approach** : Remove 2 servers , add firewall config, add permission to AWS user. ( We give **instructions** )
+	- **Declarative approach ( Terraform )** : My new desired state is : 7 servers , this firewal config and the user with following permissions. ( **figure out yourself what needs to be done** )
+		- We adjust old config 
+		- clean and small config files
+		- awlays know the current setup
+
+#### Terraform Commands for different stages
+
+`refresh` : query infra provider to get current state -> state
+
+`plan` : create an execute plan -> determines what actions are necessary to achieve the desired state 
+
+`apply` : execute the plan ( `refresh` & `plan` )
+
+`destroy` : destroy the resources / infrastructure
+
+
+### Providers
+
+- expose resources for specific infra plateform
+- responsible for understanding API of that plateform and expose them via terraform.
+- Just code that knows how to talk to that specific technology
+
+
+We should first of all start by specifiying the provider. for example :
+
+```groovy
+provider "aws" {
+	region = "eu-central-1"
+	access_key = "xxxxxxx"
+	secret_key = "xxxxxxx"
+}
+```
+to install a provider to use with terraform we do this : We select the directory where `main.tf` is and we run
+
+```bash
+terraform init  
+```
+
+this will download any unavailable providers that are used in our files. and will generate a couple of new files.
+
+### Resources & Data sources
+
+#### Resources
+
+Resources are used to create new resources in our provider.
+
+```groovy
+resource "provider_name" "variable_name" {
+
+}
+```
+
+- `provider_name` : the name of the resource used for that provider.
+- `variable_name` : a name we use for that resource in our code.
+
+##### Creating a resource depending on another resource that doesn't exist yet
+
+```groovy
+resource "aws_vpc" "development-vpc" {
+	cidr_block = "10.0.0.0/16"
+}
+
+  
+
+resource "aws_subnet" "dev-subnet-1" {
+	vpc_id = aws_vpc.development-vpc.id
+	cidr_block = "10.0.10.0/24"
+	availability_zone = "eu-central-1a"
+}
+```
+
+##### `Apply`
+in the terraform project folder we do 
+
+```bash
+terraform apply
+```
+
+this will give us a summary on the changes ( addition / deletion ). we type `yes` to confirm.
+
+
+#### Data Sources
+
+Data sources allow data to be fetched for use in TF configuration ( for example, To create a subnet for an existing VPC ).
+
+> Each Subnet need to have different ip range than the other subnets in the VPC ( no overlapping )
+
+
+```groovy
+data "aws_vpc" "existing_vpc" {
+	default = true
+}
+
+resource "aws_subnet" "dev-subnet-2" {
+	vpc_id = data.aws_vpc.existing_vpc.id
+	cidr_block = "172.31.48.0/20"
+	availability_zone = "eu-central-1a"
+}
+```
+
+
+### Change / Destroy a resource
+
+#### Changing a Resource
+
+we can add new **tags** to our vpc. for example `Name` 
+
+```groovy
+resource "aws_vpc" "development-vpc" {
+
+	cidr_block = "10.0.0.0/16"
+
+	tags = {
+		Name = "development-vpc"
+		vpc_env = "dev"
+	}
+
+}
+```
+
+then we do `terraform apply` and the changes will take place
+
+we can now remove `vpc_env = "dev"` and terraform will make the change and remove the tag.
+
+To track the current state. Terraform uses a file `terraform.tfstate`
+
+#### Removing destroying a resource
+
+Method 1 : Remove the resource from the tf file. and then run `terraform apply`
+
+Method 2 ( should not generally be used ) : Do `terraform destory -target resourceName.resourceVarName`. To create the resource again we do `terraform apply`
+
+### More Terraform Commands
+
+- `terraform plan` : like `apply` but without actually executing the plan. Just gives a preview of it.
+
+- `terraform apply -auto-approve` : to Auto approve
+
+- `terraform destory` : Go through all the resources in the tf configuration and remove them one by one
+	- `-target` : Select a specific target
+
+
+
+### State
+

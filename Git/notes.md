@@ -4,7 +4,11 @@
 
 Start it with the oldest commit you want to retain as-is:
 
-`git rebase -i <after-this-commit>`
+`git rebase -i <after-this-commit-hash>`
+
+or we can do 
+
+`git rebase -i HEAD~i` where i is the number of commits in the past
 
 An editor will be fired up with all the commits in your current branch (ignoring merge commits), which come after the given commit. You can reorder the commits in this list to your heart's content, and you can remove them. The list looks more or less like this:
 

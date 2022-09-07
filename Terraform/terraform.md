@@ -395,3 +395,110 @@ resource "..." "..." {
 }
 
 ```
+
+
+## Environment Variables
+
+Useful if we want to hide credentials instead of adding them to our IAC files.
+
+### Method 1 : Terminal Env variables
+
+we add `AWS_SECRET_ACCESS_KEY` and `AWS_ACCESS_KEY_ID` to our terminal environment. When we run `terraform apply` terraform will be able to pick them up and use them to auth to AWS.
+
+### Method 2 : use AWS CLI config file
+
+the config file for credentials for AWS CLI is under `~/.aws/credentials`
+
+terraform will be able to use these credentials to authenticate to AWS directly. So we can simply run `terraform apply`
+
+### Define custom environment variable
+
+they should start with `TF_VAR_name`, for example : 
+
+```bash
+export TF_VAR_avail_zone="eu-west-3a"
+```
+
+then we add our variable to our file
+
+```groovy
+variable avail_zone {}
+```
+
+Then we can simply use it in any resource by calling
+
+```groovy
+var.avail_zone
+```
+
+
+## Create Remote Git Repo
+
+- safekeeping
+- history of changes
+- team collaboration
+- review infra changes using merge requests
+
+a few files should not be added to git and should inside the `.gitignore`, such as : 
+
+- `.terraform` : stores the providers that are installed locally
+- `terraform.tfstate` : this is a local state, created when we do `terraform apply` and should be ignored
+- `terraform.tfstate.backup` : previous state that should be ignored too
+- `terraform.tfvars` : In addition to any other variable files, because they might contain sensitive data.
+
+
+however `.terraform.lock.hcl` should be added to the git repo so that the different team members have the same version for the diffferent providers.
+
+## Practical : Automate AWS Infrastructure
+
+Best Practice in Terraform : Create inftrastructure from scratch without touching the default one ( default VPC, subnet... )
+1. Create custom VPC
+2. Create one subnet in one Availability zone of the VPC
+3. Connect these VPC to internet using an internet gateway
+4. Inside the subnet we will create an EC2 instance
+5. Deploy nginx Docker container
+6. Create Security Group ( Firewall )
+
+### VPC and Subnet
+
+```groovy
+provider "aws" {
+	region = "eu-central-1"
+}
+
+# eu-central-1a
+
+variable vpc_cidr_block {}
+variable subnet_cidr_block {}
+variable avail_zone {}
+variable env_prefix {}
+
+resource "aws_vpc" "myapp-vpc" {
+
+	cidr_block = var.vpc_cidr_block
+	
+	tags = {
+		Name = "${var.env_prefix}-vpc"
+	}
+
+}
+  
+resource "aws_subnet" "myapp-subnet-1" {
+
+	vpc_id = aws_vpc.myapp-vpc.id
+	cidr_block = var.subnet_cidr_block
+	availability_zone = var.avail_zone
+	
+	tags = {
+		Name = "${var.env_prefix}-subnet-1"
+	}
+
+}
+```
+
+
+Route table : Represents the virtual router in our VPC, created by default with each VPC. generally the id is `rtb-***`. It handles all the traffic **within** our VPC.
+
+Network ACL : Created by default with each subnet for a VPC ( NACL ). Represents the firewall ( inbound / outbound rules... ) -> open by default
+
+> Security group is the firewall on the server level -> closed by default

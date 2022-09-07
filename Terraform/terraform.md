@@ -285,3 +285,113 @@ output "dev-subnet-id" {
 	value = aws_subnet.dev-subnet-1.id
 }
 ```
+
+## Variables
+
+They can be very useful, especially when some parts are redundant ( example for dev/prod ). we define a variable like this ( assaging is done later ).
+
+```groovy
+variable "subnet_cidr_block" {
+	description = "subnet cidr block"
+}
+```
+
+### Assigning variable value : 
+
+#### Method 1
+
+we can simply do `terraform apply`, any variables that don't have a value will get a prompt before applying the infra.
+
+#### Method 2
+
+we can also do `terraform apply -var "name=value"`
+
+#### Method 3 : Variables file ( best approach)
+
+we put our variables in a file, in a format `name = value`. This file should be name `terraform.tfvars`. We can create multiple `.tfvars` and then reference them in the `apply` command based on our needs ( by adding `-var-file filename.tfvars` )
+
+
+example 
+```groovy
+subnet_cidr_block = "10.0.40.0/24"
+
+vpc_cidr_block = "10.0.0.0/16"
+
+  
+environment = "development"
+```
+
+### Assigning Default value : 
+
+Inside the `variable` block in `main.tf` we can add a default value that will be used if terraform can't find an assigned value for that variable
+
+example. In `main.tf`
+
+```groovy
+variable "vpc_cidr_block" {
+	description = "vpc cidr block"
+	default = "10.0.10.0/24"
+}
+```
+
+### Type Constraints 
+
+You can specify a certain type for your variable
+
+```groovy
+variable "vpc_cidr_block" {
+	description = "vpc cidr block"
+	default = "10.0.10.0/24"
+	type = string
+}
+```
+
+If we want we can also pass a `list`
+
+```groovy
+# In main.tf
+variable "vpc_cidr_blocks" {
+	description = "vpc cidr blocks"
+	type = list(string)
+}
+
+# In terraform.tfvars
+
+vpc_cidr_blocks = [ "10.0.0.1", "10.0.0.1"]
+
+# We access it like this. In main.tf
+resource "..." "..." {
+	... = var.cidr_blocks[0]
+}
+
+```
+
+and then we assign it, and treat it as a list.
+
+
+Or we can pass objects and have string constraints.
+
+
+```groovy
+# In main.tf
+variable "vpc_cidr_blocks" {
+	description = "vpc cidr blocks"
+	type = list(object({
+		cidr_block = string,
+		name = string
+	})
+}
+
+# In terraform.tfvars
+
+vpc_cidr_blocks = [{
+	cidr_block = "10.0.0.0/16",
+	name = "dev-vpc"
+}]
+
+# We access it like this. In main.tf
+resource "..." "..." {
+	... = var.cidr_blocks[0].name
+}
+
+```

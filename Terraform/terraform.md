@@ -496,9 +496,195 @@ resource "aws_subnet" "myapp-subnet-1" {
 }
 ```
 
+#### Routing for VPC & routing table
 
-Route table : Represents the virtual router in our VPC, created by default with each VPC. generally the id is `rtb-***`. It handles all the traffic **within** our VPC.
+Route table : Represents the virtual router in our VPC, created by default with each VPC. generally the id is `rtb-******`. It handles all the traffic **within** our VPC.
+
+to connect our VPC to the internet. We need to add a link an internet gateway to its route table -> **By creating a new route** ( same thing done for the Default VPC )
+
+
+internal routing is configured by default for each route table so we should not configure it. We should focus on configuring the internet gateway. 
+
+```groovy
+resource "aws_internet_gateway" "myapp-igw" {
+
+vpc_id = aws_vpc.myapp-vpc.id
+
+tags = {
+	Name = "${var.env_prefix}-igw"
+}
+}
+
+resource "aws_route_table" "myapp-route-table" {
+
+vpc_id = aws_vpc.myapp-vpc.id
+
+route {
+	cidr_block = "0.0.0.0/0"
+	gateway_id = aws_internet_gateway.myapp-igw.id
+}
+
+tags = {
+	Name = "${var.env_prefix}-rtb"
+}
+
+}
+```
 
 Network ACL : Created by default with each subnet for a VPC ( NACL ). Represents the firewall ( inbound / outbound rules... ) -> open by default
 
 > Security group is the firewall on the server level -> closed by default
+
+##### Subnet Association with Route table
+
+after creating the route table. we need to associate subnets to it so that traffic from the subnet can also be handled by the route table.
+
+By default subnets are associated to the **main** route table ( the one which is described as Main in the UI ).
+
+For that, after creating a route table. we need to associate subnets **explicitly** to it ( since it won't be the main one ).
+
+```groovy
+resource "aws_route_table_association" "a-rtb-subnet" {
+	subnet_id = aws_subnet.myapp-subnet-1.id
+	route_table_id = aws_route_table.myapp-route-table.id
+}
+```
+
+#### Routing for VPC & routing table : Using the default route table
+
+When we create a VPC a default route table gets created ( it's also main ). But it doesn't have internet access. We can use it and add the internet gatway to it ( without creating a new route table ). So we won't have to creating a new `aws_route_table` and `aws_route_table_association` resources.
+
+```groovy
+resource "aws_default_route_table" "main-rtb" {
+
+default_route_table_id = aws_vpc.myapp-vpc.default_route_table_id
+
+route {
+	cidr_block = "0.0.0.0/0"
+	gateway_id = aws_internet_gateway.myapp-igw.id
+}
+
+
+tags = {
+	Name = "${var.env_prefix}-main-rtb"
+}
+
+}
+```
+
+> we can use `terraform state show resourceType.resourceName` to show all the metadata for a certain resource ( and to determine which fields we might need )
+
+### Create Security group
+
+A security group is created by default for each region and for each newly created VPC. But we can always create a new one instead of using the default.
+
+Incoming traffic : -> `ingress`
+  - ssh into EC2
+  - access from browser
+
+outgoing traffic : -> `egress`
+  - installations inside server
+  - fetch Docker image
+
+```python
+resource "aws_security_group" "myapp-sg" {
+
+	name = "myapp-sg"
+	
+	vpc_id = aws_vpc.myapp-vpc.id
+	
+	# Incoming
+	ingress {
+	
+		from_port = 22
+		# We can make this 1000 to have ports 22 -> 1000 all open
+		to_port 22 
+		
+		protocol = "tcp"
+		
+		# range of ip addresses that can access through these ports. /32 means we have only one address.
+		
+		cidr_block = [var.my_ip]
+	}
+	# Incoming 2 - Allow access to anyone into web server
+	
+	ingress {
+		from_port = 8080
+		to_port = 8080
+		protocol = "tcp"
+		cidr_blocks = ["0.0.0.0/0"]
+	}
+	
+	egress {
+		from_port = 0 
+		to_port = 0
+		protocol = "-1"
+		cidr_block = ["0.0.0.0/0"]
+		prefix_list_ids = []
+	}
+
+	tags = {
+		Name = "${var.env_prefix}-sg" 
+	}
+}
+```
+
+### Using the Default security group for the VPC
+
+Since a security group is created by default with each VPC. we can just use that one.
+
+We can use the same thing we used above but with these changes : 
+- remove the `name` field since it isn't needed
+- change `aws_security_group` -> `aws_default_security_group`
+- The rules should stay unchanged and everything else stays the same.
+
+### Creating an EC2 instance
+
+#### Getting the ami id 
+
+Note that the AMI id **for the same machine** can be different across regions. And it can be dynamic and change when it's updated. That's why we need to set it dynamically buy querying first to get the idd.
+
+```groovy
+data "aws_ami" "latest-amazon-linux-image" {
+	most_recent = true
+	# owner can be amazon, community, .... we get it from the AMI list on the gui AWS
+	owners = ["amazon"]
+	filter {
+		name = "name"
+		values = ["amzn2-ami-*-gp2"]
+	}
+	filter {
+		name = "virtualization-type"
+		values = ["hvm"]
+	}
+}
+```
+
+We now set the instance type in a variable and create our resource
+
+```groovy
+resource "aws_instance" "myapp-server" {
+	ami = data.aws_ami.latest-amazon-linux-image.id
+	instance_type = var.instance_type
+	
+	subnet_id = aws_subnet.myapp-subnet-1.id
+	vpc_security_group_ids = [aws_default_security_group.default-sg.id]
+	availability_zone = var.avail_zone
+	
+	associate_public_ip_address = true 
+	key_name = saief-key
+
+	tags = {
+		Name = "${var.env_prefix}-server"
+	}
+}
+```
+
+>Only the ami and the instance_type are required. All the other different params are optional. By default **the Default VPC is selected for the instance**
+
+
+#### Automate key pair
+
+we just need to provide the location of our public key. aws will create a private key from it. Then we can use the key pair when provisioning our EC2 instance.
+
+

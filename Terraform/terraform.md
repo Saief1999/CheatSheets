@@ -688,3 +688,129 @@ resource "aws_instance" "myapp-server" {
 we just need to provide the location of our public key. aws will create a private key from it. Then we can use the key pair when provisioning our EC2 instance.
 
 
+## Entrypoint to our EC2 instance
+
+we can add `user_data` to run a launch script for the container
+
+```
+user_data = file("entry-script.sh")
+```
+
+And inside `entry-script.sh` we have this 
+
+```bash
+#!/bin/bash
+
+sudo yum update -y && sudo yum install -y docker
+
+sudo systemctl start docker
+
+sudo usermod -aG docker ec2-user
+
+docker run -p 8080:80 nginx
+```
+
+
+> We can see that terraform is best used for provisioning the infrastructure. But to maintain and manage the underlying applications ( updating packages, ect... ), it's best to use another tool ( like Ansible / Puppet / Chef ).
+
+
+## Provisioners ( Not recommanded )
+
+> Use **user_data** If it's available ( and it is on most cloud providers). Using provisioners isn't recommanded! Also provisioners break idempotency ( we might end up with a different state)!
+
+Terraform doesn't  give us any feedback on `user_data` commands execution. Because AWS will execute the commands later on. There are however still ways to run commands from terraform directly. by using provisioners.
+
+provisioners are able to connect to a remote server and execute commands.
+
+### Remote exec provisioner
+
+`remote-exec` provisioner : 
+  - invokes a script on a remote resource after it is created
+	  - inline : list of commands
+	  - script : path
+
+```
+connection {
+	type = "ssh"
+	host = self.public_ip
+	user = "ec2-user"
+	private_key = file(var.private_key_location)
+}
+
+  
+
+provisioner "remote-exec" {
+	inline = [
+		"export ENV=dev",
+		"mkdir newdir"
+	]
+}
+```
+
+**Note**: If we write it like this :
+
+```
+provisioner "remote-exec" {
+	script = file("entry-scipt.sh")
+}
+```
+
+**This means that the script should already exist on our server !**. That means we will run a remote script and not a script that's available for us locally.
+
+### File provisioner 
+
+We can use the `file` provisioner to copy files or directories from local to newly created resource
+- source - source file or folder
+- destination - absolute path
+
+```
+provisioner "file" {
+	source = "entry-script.sh"
+	destination = "/home/ec2-user/entry-script-on-ec2.sh"
+}
+```
+
+
+### Local Exec provisioner 
+
+invokes a local executable after a resource is created. This will run locally and not on the server!
+
+example 
+
+```
+provisioner "local-exec" {
+	command = "echo ${self.public_ip} > output.txt"
+}
+```
+
+### Alternatives
+
+#### Alternative to remote-exec
+
+Use configuration management tools.
+
+Once server provisioner, hand over to those tools.
+
+#### Alternative to local-exec
+
+use "local" provider that's available in terraform
+
+#### Alternative
+
+execute scripts separate from terraform, from CI/CD tool ( like jenkins for example ).
+
+
+### Provisioner Failure
+
+If a provisioner fails the resource will be marked as **failed** and we'll have to recreate it.
+
+
+## Modules
+
+help to customize the configuration with variables ( as **input** variables )
+
+and then we have **outputs** from each module than can be used in other modules. 
+
+Create a module when you want to group a set of rsources together ( for example create a webserver and all the resources around it ).
+
+Terraform registry has a list of modules that are created and we can use.

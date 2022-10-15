@@ -468,3 +468,31 @@ aws ec2 describe-instances --filters "Name=instance-type,Values=t2.micro" --quer
 ```
 
 
+
+
+## Amazon ECS
+
+Components Of amazon ECS : 
+- Cluster
+- Task
+- Service
+
+### ECS Cluster
+
+A cluster is where our containers are going to be run
+
+a cluster is a group of EC2 instances that are spread among availibility zones. Each EC2 instance containing the logic( our docker container) + an **agent** (which is a container itself) that talks to ECS backend logic which allows resource management, lifecycle coordination, ...
+
+### ECS Task
+
+we groups containers in a **task** then we ask ecs to run them on the cluster.
+
+#### Task definition
+
+file that describes one or more containers that should be run together
+
+a task : is an instanciation of a task definition that runs one or more containers on the same EC2 instance.
+
+### ECS Service
+
+an ECS service is used to manage a certain number of tasks.
